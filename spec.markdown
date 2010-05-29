@@ -97,3 +97,16 @@ You can also have multi-line functions.
         );
 
 A thing to remember about functions is that they do not share scope. Everything you declare with the `let` keyword, inside a function will be deallocated when the function returns. However you can declare `global variables` with the `def` keyword.
+
+## Tuples ##
+
+`>> bar [field, field1] tuple`
+
+`>> instance let, instance bar =`
+
+`>> instance.field 10 =, instance.field1 2 =`
+
+`>> instance.field instance.field1 /`
+
+`5`
+
