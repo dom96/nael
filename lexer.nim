@@ -13,7 +13,8 @@ proc analyse*(code: string): seq[string] =
   while True:
     case code[i]
     of '\0':
-      result.add(r)
+      if r != "":
+        result.add(r)
       break
     of ' ', ',':
       if not stringStarted:
@@ -74,5 +75,8 @@ proc analyse*(code: string): seq[string] =
     inc(i)
       
 when isMainModule:
-  for i in items(analyse("\"5\" 10 print")):
-    echo(i)
+  for i in items(analyse("func [arg] (10 print); ")):
+    if i != "":
+      echo(i)
+    else:
+      echo("<>EMPTY<>")
