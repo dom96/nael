@@ -74,5 +74,5 @@ proc analyse*(code: string): seq[string] =
     inc(i)
       
 when isMainModule:
-  for i in items(analyse("5 5 5")):
+  for i in items(analyse("\"5\" 10 print")):
     echo(i)
