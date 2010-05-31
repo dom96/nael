@@ -12,6 +12,7 @@ type
     ntList,
     ntQuot,
     ntDict,
+    ntNil,
     ntCmnd # Exclusive to quotations.
     
   PType* = ref TType
@@ -27,6 +28,7 @@ type
       lValue*: seq[PType]
     of ntDict:
       dValue*: TDict
+    of ntNil: nil
       
   TStack* = tuple[stack: seq[PType], limit: int]
   
@@ -58,6 +60,8 @@ proc `$`*(item: PType): string =
     result.add(")")
   of ntDict:
     result.add("__dict__")
+  of ntNil:
+    result.add("nil")
 
 proc newStack*(limit: int): TStack =
   result.stack = @[]

@@ -4,6 +4,8 @@
 # This module unites all three module, parser, stack and variables.
 # This module is imported by interpreter and core
 
+# variables will not compile on their own...
+
 # parser.nim
 include parser
 

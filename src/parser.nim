@@ -2,7 +2,7 @@
 # 29 May 2010
 
 # Syntactic analyser - Calls the lexer and turns it's output into an AST
-import lexer, strutils, times
+import lexer, strutils
 
 type
   PNaelNodeKind* = ref TNaelNodeKind  

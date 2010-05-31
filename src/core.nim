@@ -14,6 +14,13 @@ proc command*(cmnd: string, dataStack: var TStack, vars: var PType) =
   of "call":
     var first = dataStack.pop()
     interpretQuotation(first, dataStack, vars)
+  else:
+    var tVar = vars.getVar(cmnd)
+    if tVar == nil:
+      raise newException(EVar, "Error: $1 is not declared.")
+    dataStack.push(tVar)
+    
+    # TODO: Functions
 
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars: var PType) =
   if quot.kind != ntQuot:
@@ -21,7 +28,7 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars: var PType) =
   
   for item in items(quot.lvalue):
     case item.kind
-    of ntInt, ntFloat, ntString, ntList, ntQuot, ntDict:
+    of ntInt, ntFloat, ntString, ntList, ntQuot, ntDict, ntNil:
       dataStack.push(item)
     of ntCmnd:
       command(item.value, dataStack, vars)

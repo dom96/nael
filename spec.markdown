@@ -61,6 +61,8 @@ You can then set it to whatever value you want. nael is dynamically typed langua
 
 `123`
 
+**Note:** Whenever you declare a variable it's default value is nil
+
 ## Anonymous functions ##
 Anonymous functions are code snippets which haven't been executed yet.
 Functions have their own scope, while anonymous functions share scope with the scope of the function that it was executed in.
