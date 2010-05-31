@@ -205,6 +205,7 @@ proc parse*(code: string): seq[PNaelNode] =
       
     inc(i)
 
+# for Debugging ONLY
 proc `$`*(n: PNaelNode): string =
   result = ""
   case n.kind
@@ -241,11 +242,11 @@ proc `$`*(n: PNaelNode): string =
 proc `$`(ast: seq[PNaelNode]): string =
   result = ""
   for n in items(ast):
-    result.add($n)
+    result.add($n & "\n")
 
 
 when isMainModule:
-  echo parse("x (5 print) =")
+  echo parse("x (\"5 print) te")
 
   discard """
 

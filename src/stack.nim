@@ -11,7 +11,8 @@ type
     ntString,
     ntList,
     ntQuot,
-    ntDict
+    ntDict,
+    ntCmnd # Exclusive to quotations.
     
   PType* = ref TType
   TType* = object
@@ -20,12 +21,10 @@ type
       iValue*: int64
     of ntFloat:
       fValue*: float64
-    of ntString:
+    of ntString, ntCmnd:
       value*: string
-    of ntList:
+    of ntList, ntQuot:
       lValue*: seq[PType]
-    of ntQuot:
-      qValue*: PNaelNode
     of ntDict:
       dValue*: TDict
       
@@ -34,23 +33,29 @@ type
   
 proc `$`*(item: PType): string =
   result = ""
+
   case item.kind
   of ntInt:
     return $item.iValue
   of ntFloat:
     return $item.fValue
-  of ntString:
+  of ntString, ntCmnd:
     return item.value
   of ntList:
     result.add("[")
-    for i in 0 .. len(item.lValue):
+    for i in 0 .. len(item.lValue)-1:
       result.add($item.lValue[i])
       if i < len(item.lValue)-1:
         result.add(", ")
-    result.add("]") 
+    result.add("]")
       
   of ntQuot:
-    result.add($item.qValue)
+    result.add("(")
+    for i in 0 .. len(item.lValue)-1:
+      result.add($item.lValue[i])
+      if i < len(item.lValue)-1:
+        result.add(", ")
+    result.add(")")
   of ntDict:
     result.add("__dict__")
 
@@ -90,7 +95,7 @@ proc newList*(value: seq[PType]): PType =
   result.kind = ntList
   result.lValue = value
 
-proc newQuot*(value: PNaelNode): PType =
+proc newCmnd*(value: string): PType =
   new(result)
-  result.kind = ntQuot
-  result.qValue = value
+  result.kind = ntCmnd
+  result.value = value
