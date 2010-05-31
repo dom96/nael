@@ -2,13 +2,21 @@
 # 30 May 2010
 
 # Interpreter - Executes the AST
-import parser, stack, variables
+import unity, core
 
-var dStack = newStack(200)
+var dataStack = newStack(200)
 var vars = newVariables()
 
 proc interpret*(ast: seq[PNaelNode]) =
   for node in items(ast):
     case node.kind
+    of nnkCommand:
+      command(node, dataStack, vars)
     of nnkIntLit:
-      # TODO
+      dataStack.push(newInt(node.iValue))
+    else:
+      #
+      
+when isMainModule:
+  var ast = parse("5 print")
+  interpret(ast)

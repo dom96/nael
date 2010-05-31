@@ -5,7 +5,6 @@
 import lexer, strutils, times
 
 type
-
   PNaelNodeKind* = ref TNaelNodeKind  
   
   TNaelNodeKind* = enum
@@ -39,7 +38,7 @@ type
     of nnkFloatLit:
       fValue*: float
       
-  ESyntaxError = object of EBase
+  ESyntaxError* = object of EBase
 
 proc getChar(tokens: seq[string], i: int): int =
   result = 0
@@ -195,6 +194,8 @@ proc parse*(code: string): seq[PNaelNode] =
           
           result.add(funcNode)
       
+          # TODO: Tuples
+      
         else:
           var cmndNode: PNaelNode
           new(cmndNode)
@@ -203,35 +204,44 @@ proc parse*(code: string): seq[PNaelNode] =
           result.add(cmndNode)
       
     inc(i)
-        
+
+proc `$`*(n: PNaelNode): string =
+  result = ""
+  case n.kind
+  of nnkQuotLit:
+    result.add("QuotSTART")
+    for i in items(n.children):
+      result.add(" " & $i & " ")
+    result.add("QuotEND")
+    
+  of nnkListLit:
+    result.add("ListSTART")
+    for i in items(n.children):
+      result.add(" " & $i & " ")
+    result.add("ListEND")
+  of nnkCommand:
+    result.add("CMND(" & n.value & ")")
+  of nnkVarDeclar:
+    result.add("VarDeclaration(" & n.value & ")")
+  of nnkVarSet:
+    var setValue = $(n.setValue)
+    result.add("VarSET($1, $2)" % [n.name, setValue])
+  of nnkFunc:
+    var args = $(n.args)
+    var quot = $(n.quot)
+  
+    result.add("Func($1, $2, $3)" % [n.fName, args, quot])
+  of nnkStringLit:
+    result.add("STR(\"" & n.value & "\")")
+  of nnkIntLit:
+    result.add("INT(" & $n.iValue & ")")
+  of nnkFloatLit:
+    result.add("FLOAT(" & $n.fValue & ")")
+
 proc `$`(ast: seq[PNaelNode]): string =
   result = ""
   for n in items(ast):
-    case n.kind
-    of nnkQuotLit:
-      result.add("QuotSTART\n" & $n.children & "QuotEND\n")
-    of nnkListLit:
-      result.add("ListSTART\n" & $n.children & "ListEND\n")
-    of nnkCommand:
-      result.add("CMND(" & n.value & ")\n")
-    of nnkVarDeclar:
-      result.add("VarDeclaration(" & n.value & ")\n")
-    of nnkVarSet:
-      var setValue = $(@[n.setValue])
-      result.add("VarSET($1, $2)\n" % [n.name, setValue.replace("\n", " ")])
-    of nnkFunc:
-      var args = $(@[n.args])
-      args = args.replace("\n", " ")
-      var quot = $(@[n.quot])
-      quot = quot.replace("\n", " ")
-    
-      result.add("Func($1, $2, $3)\n" % [n.fName, args, quot])
-    of nnkStringLit:
-      result.add("STR(\"" & n.value & "\")\n")
-    of nnkIntLit:
-      result.add("INT(" & $n.iValue & ")\n")
-    of nnkFloatLit:
-      result.add("FLOAT(" & $n.fValue & ")\n")
+    result.add($n)
 
 
 when isMainModule:
