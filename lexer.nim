@@ -16,7 +16,7 @@ proc analyse*(code: string): seq[string] =
       if r != "":
         result.add(r)
       break
-    of ' ', ',':
+    of ' ', ',', '\L', '\c': # Chars to ignore, these also mark the end of a token
       if not stringStarted:
         if r != "":
           result.add(r)

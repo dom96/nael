@@ -1,3 +1,6 @@
 nimcache
 parser
 lexer
+interpreter
+variables
+stack
