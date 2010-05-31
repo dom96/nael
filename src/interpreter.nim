@@ -47,7 +47,7 @@ proc interpret*(ast: seq[PNaelNode]) =
   for node in items(ast):
     case node.kind
     of nnkCommand:
-      command(node, dataStack, vars)
+      command(node.value, dataStack, vars)
     of nnkIntLit:
       dataStack.push(newInt(node.iValue))
     of nnkStringLit:
@@ -58,9 +58,19 @@ proc interpret*(ast: seq[PNaelNode]) =
       dataStack.push(toList(node))
     of nnkQuotLit:
       dataStack.push(toList(node))
+    of nnkVarDeclar:
+      #
+      
     else:
       #
       
 when isMainModule:
-  var ast = parse("(5 6 7 [234 6.98] print) print")
+  var ast = parse("x let")
   interpret(ast)
+  
+  if dataStack.stack.len() > 0:
+    var result = "stack["
+    for i in items(dataStack.stack):
+      result.add($i & ", ")
+    result.add("]")
+    echo(result)

@@ -92,11 +92,10 @@ proc parse*(code: string): seq[PNaelNode] =
         result.add(quotNode)
       else:
         raise newException(ESyntaxError, 
-            "[Char: $2] SyntaxError: Quotation not ended" %
+            "[Char: $1] SyntaxError: Quotation not ended" %
                 [$getChar(tokens, i)])
     
     of "[":
-
       # Everything in between [ and ] is one token.
       if tokens.len()-i > 2 and tokens[i + 2] == "]":
         var listNode: PNaelNode
@@ -110,7 +109,24 @@ proc parse*(code: string): seq[PNaelNode] =
         result.add(listNode)
       else:
         raise newException(ESyntaxError, 
-            "[Char: $2] SyntaxError: List not ended" %
+            "[Char: $1] SyntaxError: List not ended" %
+                [$getChar(tokens, i)])
+    
+    of "\"":
+      # Everything in between " and " is one token.
+      if tokens.len()-i > 2 and tokens[i + 2] == "\"":
+        var strNode: PNaelNode
+        new(strNode)
+        strNode.kind = nnkStringLit
+        strNode.value = tokens[i + 1]
+        
+        # skip the string and "
+        inc(i, 2)
+        
+        result.add(strNode)
+      else:
+        raise newException(ESyntaxError, 
+            "[Char: $1] SyntaxError: String not ended" %
                 [$getChar(tokens, i)])
     
     else:
@@ -127,16 +143,6 @@ proc parse*(code: string): seq[PNaelNode] =
         floatNode.kind = nnkFloatLit
         floatNode.fValue = tokens[i].parseFloat()
         result.add(floatNode)
-      
-      elif tokens[i].startswith("\""):
-        var strNode: PNaelNode
-        new(strNode)
-        strNode.kind = nnkStringLit
-        # Get rid of the " 
-        var val = tokens[i].copy(1, tokens[i].len()-1)
-        val = val.copy(0, val.len()-2)
-        strNode.value = val
-        result.add(strNode)
       
       else:
         # Test for special expressions here.
@@ -246,7 +252,7 @@ proc `$`(ast: seq[PNaelNode]): string =
 
 
 when isMainModule:
-  echo parse("x (\"5 print) te")
+  echo parse("foo [arg] (arg \" again\" print);")
 
   discard """
 
