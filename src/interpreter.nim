@@ -15,7 +15,9 @@ type
     ntQuot,
     ntDict,
     ntNil,
-    ntCmnd # Exclusive to quotations.
+    ntCmnd, # Exclusive to quotations.
+    ntFunc, # Exclusively used only in variables
+    ntASTNode # A PNaelNode - VarDeclar VarSet etc, Are declared with this in quotations
     
   PType* = ref TType
   TType* = object
@@ -31,6 +33,11 @@ type
     of ntDict:
       dValue*: TDict
     of ntNil: nil
+    of ntFunc:
+      args*: seq[PType]
+      quot*: PType
+    of ntASTNode:
+      node*: PNaelNode
       
   TStack* = tuple[stack: seq[PType], limit: int]
   
@@ -67,6 +74,19 @@ proc `$`*(item: PType): string =
     result.add("__dict__")
   of ntNil:
     result.add("nil")
+  of ntFunc:
+    result.add("__func__")
+  of ntAstNode:
+    case item.node.kind:
+    of nnkVarDeclar:
+      result.add(item.node.value & " let")
+    of nnkVarSet:
+      result.add("VarSET(" & item.node.name & ")")
+    of nnkFunc:
+      result.add("Func(" & item.node.fName & ")")
+    else:
+      raise newException(ERuntimeError, "Error: Unexpected AstNode in `$`, " & $item.node.kind)
+  
 
 proc newStack*(limit: int): TStack =
   result.stack = @[]
@@ -109,12 +129,32 @@ proc newCmnd*(value: string): PType =
   result.kind = ntCmnd
   result.value = value
 
+proc toPType(item: PNaelNode): PType
+proc newFunc*(node: PNaelNode): PType =
+  new(result)
+  result.kind = ntFunc
+  var args: seq[PType] = @[]
+  for n in items(node.args.children):
+    if n.kind == nnkCommand:
+      args.add(newCmnd(n.value))
+    else:
+      raise newException(ERuntimeError, "Error: Function declaration incorrect, got " & $n.kind & " for args")
+
+  result.args = args
+  result.quot = toPType(node.quot)
+
+proc newASTNode*(node: PNaelNode): PType = 
+  new(result)
+  result.kind = ntASTNode
+  result.node = node
+
 proc newVariables*(): PType =
   new(result)
   result.kind = ntDict
   result.dValue = @[]
   
 proc addStandard*(vars: var PType) =
+  ## Adds standard variables(__path__, __modules__) to vars. 
   var appDir = newString(os.getApplicationDir())
   var pathVar = newList(@[appDir])
   vars.dValue.add(("__path__", pathVar))
@@ -205,9 +245,14 @@ proc toPType(item: PNaelNode): PType =
       of nnkCommand, nnkVarDeclar, nnkVarSet, nnkFunc:
         # Commands are not allowed in Lists.
         if item.kind == nnkListLit:
-          raise newException(ERuntimeError, "Error: $1 not allowed in a list literal" % [$item.kind])
+          raise newException(ERuntimeError, "Error: $1 not allowed in a list literal" % [$node.kind])
         elif item.kind == nnkQuotLit:
-          result.lValue.add(newCmnd(node.value))
+
+          if node.kind == nnkCommand:
+            result.lValue.add(newCmnd(node.value))
+          elif node.kind == nnkVarDeclar or node.kind == nnkVarSet or node.kind == nnkFunc:
+            result.lValue.add(newASTNode(node))
+            
           
       of nnkIntLit, nnkStringLit, nnkFloatLit, nnkListLit, nnkQuotLit:
         result.lValue.add(toPType(node))
@@ -225,19 +270,18 @@ proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PTy
       vars.declVar(node.value)
     of nnkVarSet:
       vars.setVar(node.name, toPType(node.setValue)) 
-    
-    else:
-      #
+    of nnkFunc:
+      gvars.declVar(node.fName)
+      gvars.setVar(node.fName, newFunc(node))
 
-include core # I know this is kind of bad... but i want to have all those
-             # commands in a seperate module.
+include core
 
 var dataStack = newStack(200)
 var vars = newVariables() # 'main' variables(They act as both local and global)
 vars.addStandard()
 
 when isMainModule:
-  var ast = parse("\"hello\" import")
+  var ast = parse("foo [arg] (arg print); 5 foo")
   interpret(ast, dataStack, vars, vars)
   
   if dataStack.stack.len() > 0:

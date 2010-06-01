@@ -25,9 +25,24 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var tVar = vars.getVar(cmnd)
     if tVar == nil:
       raise newException(EVar, "Error: $1 is not declared.")
-    dataStack.push(tVar)
     
-    # TODO: Functions
+    if tVar.kind != ntFunc:
+      dataStack.push(tVar)
+    else:
+      var localVars = newVariables() # This functions local variables
+      var funcStack = newStack(200) # This functions stack
+      
+      for arg in items(tVar.args):
+        if arg.kind == ntCmnd:
+          var first = dataStack.pop()
+          localVars.declVar(arg.value)
+          localVars.setVar(arg.value, first)
+        else:
+          raise newException(ERuntimeError, "Error: Function contains unexpected args, " & $arg.kind)
+      
+      interpretQuotation(tVar.quot, funcStack, localVars, gvars)
+    
+
 
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType) =
   if quot.kind != ntQuot:
@@ -35,28 +50,47 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
   
   for item in items(quot.lvalue):
     case item.kind
-    of ntInt, ntFloat, ntString, ntList, ntQuot, ntDict, ntNil:
+    of ntInt, ntFloat, ntString, ntList, ntQuot, ntDict, ntNil, ntFunc:
       dataStack.push(item)
     of ntCmnd:
       command(item.value, dataStack, vars, gvars)
+    of ntAstNode:
+      case item.node.kind:
+      of nnkVarDeclar:
+        vars.declVar(item.node.value)
+      of nnkVarSet:
+        vars.setVar(item.node.name, toPType(item.node.setValue))
+      of nnkFunc:
+        gvars.declVar(item.node.fName)
+        gvars.setVar(item.node.fName, newFunc(item.node))
+      else:
+        raise newException(ERuntimeError, "Error: Unexpected AstNode in quotation, " & $item.node.kind)
 
 proc loadModules(modules: seq[string], vars, gvars: var PType) =
   var paths = gvars.getVar("__path__")
-  if paths != nil:
+  var modulesVar = gvars.getVar("__modules__")
+  if paths != nil and modulesVar != nil:
     for path in items(paths.lValue):
-      for module in items(modules):
-        var file = readFile(path.value / module & ".nael")
-        if file != nil:
-          var locals = newVariables()
-          var globals = newVariables()
-          globals.addStandard()
-          var moduleStack = newStack(200)
-          
-          var ast = parse(file)
-          interpret(ast, moduleStack, locals, globals)
-          
-          var moduleList = newList(@[newString(module), locals, globals]) # [name, {locals}, {globals}]
-          var modulesVar = gvars.getVar("__modules__")
-          modulesVar.lValue.add(moduleList)
-        else:
-          echo("File not found.. ", path.value / module & ".nael")
+      if path.kind == ntString:
+        for module in items(modules):
+          var file = readFile(path.value / module & ".nael")
+          if file != nil:
+            var locals = newVariables()
+            var globals = newVariables()
+            globals.addStandard()
+            var moduleStack = newStack(200)
+            
+            var ast = parse(file)
+            interpret(ast, moduleStack, locals, globals)
+            
+            var moduleList = newList(@[newString(module), locals, globals]) # [name, {locals}, {globals}]
+            modulesVar.lValue.add(moduleList)
+          else:
+            raise newException(ERuntimeError, "Error: Unable to load " & module & ", module cannot be found.")
+      else:
+        raise newException(ERuntimeError, "Error: Unable to load module, incorrect path, got type " & $path.kind)
+
+  else:
+    raise newException(ERuntimeError, "Error: Unable to load module, path and/or modules variable is not declared.")
+
+
