@@ -42,10 +42,9 @@ type
   TStack* = tuple[stack: seq[PType], limit: int]
   
   ERuntimeError* = object of EBase
-  EVar* = object of EBase
 
 # Stack
-proc `$`*(item: PType): string =
+proc toString*(item: PType, stack = False): string =
   result = ""
 
   case item.kind
@@ -54,11 +53,14 @@ proc `$`*(item: PType): string =
   of ntFloat:
     return $item.fValue
   of ntString, ntCmnd:
-    return "\"" & item.value & "\""
+    if stack:
+      return "\"" & item.value & "\""
+    else:
+      return item.value
   of ntList:
     result.add("[")
     for i in 0 .. len(item.lValue)-1:
-      result.add($item.lValue[i])
+      result.add(toString(item.lValue[i]))
       if i < len(item.lValue)-1:
         result.add(", ")
     result.add("]")
@@ -66,7 +68,7 @@ proc `$`*(item: PType): string =
   of ntQuot:
     result.add("(")
     for i in 0 .. len(item.lValue)-1:
-      result.add($item.lValue[i])
+      result.add(toString(item.lValue[i]))
       if i < len(item.lValue)-1:
         result.add(", ")
     result.add(")")
@@ -91,7 +93,7 @@ proc printStack*(stack: TStack) =
   if stack.stack.len() > 0:
     var result = "stack → ["
     for i in 0 .. len(stack.stack)-1:
-      result.add($stack.stack[i])
+      result.add(toString(stack.stack[i], True))
       if i < len(stack.stack)-1:
         result.add(", ")
       
@@ -201,7 +203,7 @@ proc declVar*(vars: var PType, name: string) =
     raise newException(EInvalidValue, "Error: The variable list needs to be a dict.")
 
   if getVarIndex(vars, name) != -1:
-    raise newException(EVar, "Error: $1 is already declared." % [name])
+    raise newException(ERuntimeError, "Error: $1 is already declared." % [name])
 
   var theVar: PType
   new(theVar)
@@ -216,7 +218,7 @@ proc setVar*(vars: var PType, name: string, theVar: PType) =
   
   var varIndex = vars.getVarIndex(name)
   if varIndex == -1:
-    raise newException(EVar, "Error: $1 is not declared." % [name])
+    raise newException(ERuntimeError, "Error: $1 is not declared." % [name])
     
   vars.dValue[varIndex][1] = theVar
   
@@ -285,6 +287,10 @@ proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PTy
       gvars.setVar(node.fName, newFunc(node))
 
 include core
+
+proc exec*(code: string, dataStack: var TStack, vars, gvars: var PType) =
+  var ast = parse(code)
+  interpret(ast, dataStack, vars, vars)
 
 var dataStack = newStack(200)
 var vars = newVariables() # 'main' variables(They act as both local and global)

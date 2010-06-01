@@ -38,6 +38,7 @@ First two 5's are pushed on the stack, then `+` is called.
 Lists can contain any type.
 
 `>> ["string", 56]`
+
 `stack → [["string", 56]]`
 
 

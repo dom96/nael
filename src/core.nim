@@ -7,11 +7,12 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
 proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
 
+
 proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
   case cmnd
   of "print":
     var first = dataStack.pop()
-    echo($first)
+    echo(toString(first))
   of "call":
     var first = dataStack.pop()
     interpretQuotation(first, dataStack, vars, gvars)
@@ -19,7 +20,42 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var first = dataStack.pop()
     if first.kind == ntString:
       loadModules(@[first.value], vars, gvars)
-    
+  of "+", "-", "*", "/":
+    var first = datastack.pop()
+    var second = datastack.pop()
+  
+    if cmnd == "+":
+      if first.kind == ntInt and second.kind == ntInt:
+        dataStack.push(newInt(second.iValue + first.iValue))
+      elif first.kind == ntString and second.kind == ntString:
+        dataStack.push(newString(second.value & first.value))
+      else:
+        raise newException(ERuntimeError, 
+                "Error: Invalid types, got $1 and $2. Expected string, string or int, int." %
+                        [$first.kind, $second.kind])
+    elif cmnd == "-":
+      if first.kind == ntInt and second.kind == ntInt:
+        dataStack.push(newInt(second.iValue - first.iValue))
+      else:
+        raise newException(ERuntimeError, 
+                "Error: Invalid types, got $1 and $2. Expected int, int." %
+                        [$first.kind, $second.kind])
+    elif cmnd == "*":
+      if first.kind == ntInt and second.kind == ntInt:
+        dataStack.push(newInt(second.iValue * first.iValue))
+      else:
+        raise newException(ERuntimeError, 
+                "Error: Invalid types, got $1 and $2. Expected int, int." %
+                        [$first.kind, $second.kind])
+                        
+    elif cmnd == "/":
+      if first.kind == ntInt and second.kind == ntInt:
+        dataStack.push(newInt(second.iValue div first.iValue))
+      else:
+        raise newException(ERuntimeError, 
+                "Error: Invalid types, got $1 and $2. Expected int, int." %
+                        [$first.kind, $second.kind])
+  
   else:
     var tVar: PType
     if not ("." in cmnd):
@@ -49,11 +85,20 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       for i in countdown(tVar.args.len()-1, 0):
         var arg = tVar.args[i]
         if arg.kind == ntCmnd:
-          var first = dataStack.pop()
-          localVars.declVar(arg.value)
-          localVars.setVar(arg.value, first)
+          try:
+            var first = dataStack.pop()
+          
+            localVars.declVar(arg.value)
+            localVars.setVar(arg.value, first)
+          except EOverflow:
+            # TODO: Check if this works, After araq fixes the exception bug
+            raise newException(ERuntimeError, 
+                    "Error: $1 expects $2 args, got $3" %
+                            [cmnd, $(tVar.args.len()-1), $(i)])
+
         else:
-          raise newException(ERuntimeError, "Error: Function contains unexpected args, " & $arg.kind)
+          raise newException(ERuntimeError, "Error: " & cmnd &
+                  " contains unexpected args, of kind " & $arg.kind)
       
       interpretQuotation(tVar.quot, funcStack, localVars, gvars)
 
