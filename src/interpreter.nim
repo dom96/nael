@@ -54,7 +54,7 @@ proc `$`*(item: PType): string =
   of ntFloat:
     return $item.fValue
   of ntString, ntCmnd:
-    return item.value
+    return "\"" & item.value & "\""
   of ntList:
     result.add("[")
     for i in 0 .. len(item.lValue)-1:
@@ -86,7 +86,17 @@ proc `$`*(item: PType): string =
       result.add("Func(" & item.node.fName & ")")
     else:
       raise newException(ERuntimeError, "Error: Unexpected AstNode in `$`, " & $item.node.kind)
-  
+
+proc printStack*(stack: TStack) =
+  if stack.stack.len() > 0:
+    var result = "stack → ["
+    for i in 0 .. len(stack.stack)-1:
+      result.add($stack.stack[i])
+      if i < len(stack.stack)-1:
+        result.add(", ")
+      
+    result.add("]")
+    echo(result)  
 
 proc newStack*(limit: int): TStack =
   result.stack = @[]
@@ -281,12 +291,6 @@ var vars = newVariables() # 'main' variables(They act as both local and global)
 vars.addStandard()
 
 when isMainModule:
-  var ast = parse("foo [arg] (arg print); 5 foo")
+  var ast = parse("\"hello\" import, 5 hello.foo \"16\"")
   interpret(ast, dataStack, vars, vars)
-  
-  if dataStack.stack.len() > 0:
-    var result = "stack["
-    for i in items(dataStack.stack):
-      result.add($i & ", ")
-    result.add("]")
-    echo(result)
+  printStack(dataStack)

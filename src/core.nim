@@ -4,6 +4,7 @@
 # core - Implements commands like 'print'
 
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType)
+proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
 
 proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
@@ -18,21 +19,35 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var first = dataStack.pop()
     if first.kind == ntString:
       loadModules(@[first.value], vars, gvars)
-      
-
     
   else:
-    var tVar = vars.getVar(cmnd)
+    var tVar: PType
+    if not ("." in cmnd):
+      tVar = vars.getVar(cmnd)
+    else:
+      # cmnd contains a dot
+      var before = cmnd.split('.')[0]
+      var after = cmnd.split('.')[1]
+      
+      var module = getModule(before, gvars) # [name, {locals}, {globals}]
+      if module == nil: tVar = nil
+      else:
+        tVar = module[2].getVar(after)
+    
     if tVar == nil:
-      raise newException(EVar, "Error: $1 is not declared.")
+      raise newException(ERuntimeError, "Error: $1 is not declared." % [cmnd])
     
     if tVar.kind != ntFunc:
       dataStack.push(tVar)
     else:
+      # Function call
       var localVars = newVariables() # This functions local variables
       var funcStack = newStack(200) # This functions stack
       
-      for arg in items(tVar.args):
+      # Add the arguments in reverse, so that the 'nael rule' applies
+      # 5 6 foo -> foo(5,6)
+      for i in countdown(tVar.args.len()-1, 0):
+        var arg = tVar.args[i]
         if arg.kind == ntCmnd:
           var first = dataStack.pop()
           localVars.declVar(arg.value)
@@ -41,8 +56,6 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
           raise newException(ERuntimeError, "Error: Function contains unexpected args, " & $arg.kind)
       
       interpretQuotation(tVar.quot, funcStack, localVars, gvars)
-    
-
 
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType) =
   if quot.kind != ntQuot:
@@ -66,13 +79,30 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
       else:
         raise newException(ERuntimeError, "Error: Unexpected AstNode in quotation, " & $item.node.kind)
 
+proc getModule(name: string, gvars: var PType): seq[PType] =
+  var modulesVar = gvars.getVar("__modules__")
+  for module in items(modulesVar.lValue):
+    if module.kind == ntList:
+      if module.lValue[0].kind == ntString:
+        if module.lValue[0].value == name:
+          return module.lValue
+      else:
+        raise newException(ERuntimeError, "Error: Invalid type, expected ntString got " & $module.lValue[0].kind)
+      
+  return nil
+
 proc loadModules(modules: seq[string], vars, gvars: var PType) =
   var paths = gvars.getVar("__path__")
   var modulesVar = gvars.getVar("__modules__")
   if paths != nil and modulesVar != nil:
-    for path in items(paths.lValue):
-      if path.kind == ntString:
-        for module in items(modules):
+    for module in items(modules):
+      # Check if the module exists
+      if getModule(module, gvars) != nil:
+        raise newException(ERuntimeError, "Error: Unable to load " &
+                module & ", module is already loaded.")
+    
+      for path in items(paths.lValue):
+        if path.kind == ntString:
           var file = readFile(path.value / module & ".nael")
           if file != nil:
             var locals = newVariables()
@@ -86,9 +116,11 @@ proc loadModules(modules: seq[string], vars, gvars: var PType) =
             var moduleList = newList(@[newString(module), locals, globals]) # [name, {locals}, {globals}]
             modulesVar.lValue.add(moduleList)
           else:
-            raise newException(ERuntimeError, "Error: Unable to load " & module & ", module cannot be found.")
-      else:
-        raise newException(ERuntimeError, "Error: Unable to load module, incorrect path, got type " & $path.kind)
+            raise newException(ERuntimeError, "Error: Unable to load " &
+                    module & ", module cannot be found.")
+        else:
+          raise newException(ERuntimeError, "Error: Unable to load " &
+                  module & ", incorrect path, got type " & $path.kind)
 
   else:
     raise newException(ERuntimeError, "Error: Unable to load module, path and/or modules variable is not declared.")
