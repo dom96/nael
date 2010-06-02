@@ -2,7 +2,7 @@
 # 30 May 2010
 
 # Interpreter - Executes the AST
-import parser, strutils, os
+import parser, strutils, os, times
 
 type
   TDict* = seq[tuple[name: string, value: PType]]
@@ -17,6 +17,7 @@ type
     ntDict,
     ntNil,
     ntCmnd, # Exclusive to quotations.
+    ntVar, # A pointer to a variable
     ntFunc, # Exclusively used only in variables
     ntASTNode # A PNaelNode - VarDeclar VarSet etc, Are declared with this in quotations
     
@@ -27,8 +28,8 @@ type
       iValue*: int64
     of ntFloat:
       fValue*: float64
-    of ntString, ntCmnd:
-      value*: string
+    of ntString, ntCmnd, ntVar:
+      value*: string # for ntCmnd, name of cmnd. For ntVar name of var.
     of ntBool:
       bValue*: bool
     of ntList, ntQuot:
@@ -83,18 +84,41 @@ proc toString*(item: PType, stack = False): string =
     result.add("__dict__")
   of ntNil:
     result.add("nil")
+  of ntVar:
+    result.add("<var '" & item.value & "'>")
   of ntFunc:
     result.add("__func__")
   of ntAstNode:
     case item.node.kind:
     of nnkVarDeclar:
       result.add(item.node.value & " let")
-    of nnkVarSet:
-      result.add("VarSET(" & item.node.name & ")")
     of nnkFunc:
       result.add("Func(" & item.node.fName & ")")
     else:
       raise newException(ERuntimeError, "Error: Unexpected AstNode in `$`, " & $item.node.kind)
+
+proc isEqual*(first, second: PType): bool =
+  if first.kind == second.kind:
+    case first.kind
+    of ntInt:
+      return first.iValue == second.iValue
+    of ntFloat:
+      return first.fValue == second.fValue
+    of ntString, ntCmnd, ntVar:
+      return first.value == second.value
+    of ntBool:
+      return first.bValue == second.bValue
+    of ntList, ntQuot:
+      if len(first.lValue) == len(second.lValue):
+        for i in 0 .. len(first.lValue)-1:
+          if not isEqual(first.lValue[i], second.lValue[i]):
+            return False
+        return True
+      else: return False
+    of ntDict, ntFunc, ntAstNode:
+      return first == second # FIXME: This probably doesn't work.
+    of ntNil: return True
+  else: return false
 
 proc printStack*(stack: TStack) =
   if stack.stack.len() > 0:
@@ -167,6 +191,11 @@ proc newFunc*(node: PNaelNode): PType =
   result.args = args
   result.quot = toPType(node.quot)
 
+proc newVar*(name: string): PType =
+  new(result)
+  result.kind = ntVar
+  result.value = name
+
 proc newASTNode*(node: PNaelNode): PType = 
   new(result)
   result.kind = ntASTNode
@@ -233,7 +262,7 @@ proc setVar*(vars: var PType, name: string, theVar: PType) =
   
   var varIndex = vars.getVarIndex(name)
   if varIndex == -1:
-    raise newException(ERuntimeError, "Error: $1 is not declared." % [name])
+    raise newException(ERuntimeError, "Error: Variable $1 is not declared." % [name])
     
   vars.dValue[varIndex][1] = theVar
   
@@ -269,22 +298,21 @@ proc toPType(item: PNaelNode): PType =
   if item.kind == nnkListLit or item.kind == nnkQuotLit:
     for node in items(item.children):
       case node.kind
-      of nnkCommand, nnkVarDeclar, nnkVarSet, nnkFunc:
+      of nnkCommand, nnkVarDeclar, nnkFunc:
         # Commands are not allowed in Lists.
         if item.kind == nnkListLit:
           raise newException(ERuntimeError, "Error: $1 not allowed in a list literal" % [$node.kind])
         elif item.kind == nnkQuotLit:
-
           if node.kind == nnkCommand:
             result.lValue.add(newCmnd(node.value))
-          elif node.kind == nnkVarDeclar or node.kind == nnkVarSet or node.kind == nnkFunc:
+          elif node.kind == nnkVarDeclar or node.kind == nnkFunc:
             result.lValue.add(newASTNode(node))
-            
           
       of nnkIntLit, nnkStringLit, nnkFloatLit, nnkListLit, nnkQuotLit:
         result.lValue.add(toPType(node))
 
 proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) # from core.nim
+proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType) # from core.nim
 
 proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PType) =
   for node in items(ast):
@@ -295,10 +323,9 @@ proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PTy
       dataStack.push(toPType(node))
     of nnkVarDeclar:
       vars.declVar(node.value)
-    of nnkVarSet:
-      vars.setVar(node.name, toPType(node.setValue)) 
     of nnkFunc:
-      gvars.declVar(node.fName)
+      if gvars.getVarIndex(node.fName) == -1:
+        gvars.declVar(node.fName)
       gvars.setVar(node.fName, newFunc(node))
 
 include core
@@ -312,6 +339,8 @@ var vars = newVariables() # 'main' variables(They act as both local and global)
 vars.addStandard()
 
 when isMainModule:
-  var ast = parse("\"hello\" import, 5 hello.foo \"16\"")
+  var t = getStartmilsecs()
+  var ast = parse("x let, x 5 5 + = x")
   interpret(ast, dataStack, vars, vars)
   printStack(dataStack)
+  echo("Time taken, ", getStartmilsecs() - t)

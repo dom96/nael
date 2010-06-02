@@ -59,9 +59,9 @@ Negates a boolean.
 ### if ###
 Executes a quotation based on the value on the stack.
 
-`>> (true) ("The value on the stack is True" print) ("The value on the stack is False" print) if`
+`>> (true) ("The value is True" print) ("The value is False" print) if`
 
-`The value on the stack is True`
+`The value is True`
 
 ## Variables ##
 Before you can set a variables value you need to declare it.
@@ -72,7 +72,7 @@ You can then set it to whatever value you want. nael is dynamically typed langua
 
 `>> x 123 =`
 
-`>> x print`
+`>> x get print`
 
 `123`
 

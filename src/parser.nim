@@ -15,7 +15,6 @@ type
     nnkListLit, # [5]
     nnkQuotLit, # ("some code here" print)
     nnkVarDeclar, # x let
-    nnkVarSet, # x 5 = # TODO: Make this better, x 5 5 + = is not possible currently.
     nnkFunc # func [args] (...);
     
   PNaelNode* = ref TNaelNode
@@ -26,9 +25,6 @@ type
       children*: seq[PNaelNode]
     of nnkCommand, nnkStringLit, nnkVarDeclar:
       value*: string
-    of nnkVarSet:
-      name*: string
-      setValue*: PNaelNode
     of nnkFunc:
       fName*: string
       args*: PNaelNode # List
@@ -76,7 +72,7 @@ proc parse*(code: string): seq[PNaelNode] =
   while True:
     if tokens.len()-1 < i:
       break
-      
+    
     case tokens[i]
     of "(":
       # Everything in between ( and ) is one token.
@@ -147,7 +143,6 @@ proc parse*(code: string): seq[PNaelNode] =
       else:
         # Test for special expressions here.
         
-      
         if tokens.len()-i > 1 and tokens[i + 1] == "let":
           # x let -> VarDeclaration(x)
           var declNode: PNaelNode
@@ -161,31 +156,6 @@ proc parse*(code: string): seq[PNaelNode] =
       
           result.add(declNode)
           
-        elif (tokens.len()-i > 2 and tokens[i + 2] == "=") or 
-                (tokens.len()-i > 4 and tokens[i + 4] == "="):
-          var setNode: PNaelNode
-          new(setNode)
-          setNode.kind = nnkVarSet
-          setNode.name = tokens[i]
-          if tokens.len()-i > 2 and tokens[i + 2] == "=":
-            # x 2 = - set a variable to a int/float/string ...
-            setNode.setValue = parse(tokens[i + 1])[0]
-          
-            # Move from x to =, then the inc(i) at the bottom will move
-            # to the token after '='
-            inc(i, 2)
-            
-          elif tokens.len()-i > 4 and tokens[i + 4] == "=":
-            # x [5] = - set a variable to a list(or quotation)
-            setNode.setValue = parse(tokens[i + 1] & tokens[i + 2] & tokens[i + 3])[0]
-          
-            # Move from x to =, then the inc(i) at the bottom will move
-            # to the token after '='
-            inc(i, 4)
-        
-      
-          result.add(setNode)
-      
         elif tokens.len()-i > 7 and tokens[i + 7] == ";":
           # each [ is one token, same goes for (, ] and ]
           # foo [args] (...);
@@ -203,6 +173,7 @@ proc parse*(code: string): seq[PNaelNode] =
           # TODO: Tuples
       
         else:
+          
           var cmndNode: PNaelNode
           new(cmndNode)
           cmndNode.kind = nnkCommand
@@ -230,9 +201,6 @@ proc `$`*(n: PNaelNode): string =
     result.add("CMND(" & n.value & ")")
   of nnkVarDeclar:
     result.add("VarDeclaration(" & n.value & ")")
-  of nnkVarSet:
-    var setValue = $(n.setValue)
-    result.add("VarSET($1, $2)" % [n.name, setValue])
   of nnkFunc:
     var args = $(n.args)
     var quot = $(n.quot)
@@ -252,7 +220,7 @@ proc `$`(ast: seq[PNaelNode]): string =
 
 
 when isMainModule:
-  echo parse("foo [arg] (arg \" again\" print);")
+  echo parse("i let\"test\" print i 1 =")
 
   discard """
 

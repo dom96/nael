@@ -94,7 +94,7 @@ proc analyse*(code: string): seq[string] =
     inc(i)
       
 when isMainModule:
-  for i in items(analyse("\"5 print")):
+  for i in items(analyse("x let, x 5 = x print")):
     if i != "":
       echo(i)
     else:

@@ -3,7 +3,6 @@
 
 # core - Implements commands like 'print'
 
-proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType)
 proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
 
@@ -98,6 +97,41 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         
         interpretQuotation(do, dataStack, vars, gvars)
   
+  of "==":
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    
+    dataStack.push(newBool(isEqual(first, second)))
+  
+  of "=":
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    
+    if second.kind == ntVar:
+      var index = vars.getVarIndex(second.value)
+      if index == -1:
+        gvars.setVar(second.value, first)
+      else:
+        vars.setVar(second.value, first)
+    else:
+      raise invalidTypeErr($second.kind, "var")
+  
+  of "get":
+    var first = dataStack.pop()
+    if first.kind == ntVar:
+      var tVar = vars.getVar(first.value)
+      if tVar == nil:
+        tVar = gvars.getVar(first.value)
+      
+      if tVar == nil:
+        raise newException(ERuntimeError, "Error: $1 is not declared." % [cmnd])
+      
+      dataStack.push(tVar)
+    
+    else:
+      raise invalidTypeErr($first.kind, "var")
+    
+  
   else:
     var tVar: PType
     if not ("." in cmnd):
@@ -118,22 +152,28 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       raise newException(ERuntimeError, "Error: $1 is not declared." % [cmnd])
     
     if tVar.kind != ntFunc:
-      dataStack.push(tVar)
+      dataStack.push(newVar(cmnd))
     else:
-      # Function call
+      # Function call - Functions don't share scope, but they share the stack.
       var localVars = newVariables() # This functions local variables
-      var funcStack = newStack(200) # This functions stack
       
       # Add the arguments in reverse, so that the 'nael rule' applies
       # 5 6 foo -> foo(5,6)
+      # I have to add these to globals, so that functions called from this function
+      # that have a quotation passed to them(with one of the var args..) works
+      # >> test [a] (a call);
+      # >> test2 [t] ((t print) test); 
+      # >> 2 test2
+      # 2
+
       for i in countdown(tVar.args.len()-1, 0):
         var arg = tVar.args[i]
         if arg.kind == ntCmnd:
           try:
             var first = dataStack.pop()
-          
-            localVars.declVar(arg.value)
-            localVars.setVar(arg.value, first)
+            
+            gvars.declVar(arg.value)
+            gvars.setVar(arg.value, first)
           except EOverflow:
             # TODO: Check if this works, After araq fixes the exception bug
             raise newException(ERuntimeError, 
@@ -144,7 +184,11 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
           raise newException(ERuntimeError, "Error: " & cmnd &
                   " contains unexpected args, of kind " & $arg.kind)
       
-      interpretQuotation(tVar.quot, funcStack, localVars, gvars)
+      interpretQuotation(tVar.quot, dataStack, localVars, gvars)
+
+      # Now we need to delete these args...
+      for i in countdown(tVar.args.len()-1, 0):
+        gvars.remVar(tVar.args[i].value)
 
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType) =
   if quot.kind != ntQuot:
@@ -152,7 +196,7 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
   
   for item in items(quot.lvalue):
     case item.kind
-    of ntInt, ntFloat, ntString, ntBool, ntList, ntQuot, ntDict, ntNil, ntFunc:
+    of ntInt, ntFloat, ntString, ntBool, ntList, ntQuot, ntDict, ntNil, ntFunc, ntVar:
       dataStack.push(item)
     of ntCmnd:
       command(item.value, dataStack, vars, gvars)
@@ -160,10 +204,9 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
       case item.node.kind:
       of nnkVarDeclar:
         vars.declVar(item.node.value)
-      of nnkVarSet:
-        vars.setVar(item.node.name, toPType(item.node.setValue))
       of nnkFunc:
-        gvars.declVar(item.node.fName)
+        if gvars.getVarIndex(item.node.fname) == -1:
+          gvars.declVar(item.node.fName)
         gvars.setVar(item.node.fName, newFunc(item.node))
       else:
         raise newException(ERuntimeError, "Error: Unexpected AstNode in quotation, " & $item.node.kind)
