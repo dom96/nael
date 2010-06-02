@@ -1,2 +1,4 @@
 foo [arg] (arg print);
 "test" print
+
+"You need to figure out how to deal with stuff like, x 5 5 + =, :(" print

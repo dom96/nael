@@ -15,7 +15,7 @@ type
     nnkListLit, # [5]
     nnkQuotLit, # ("some code here" print)
     nnkVarDeclar, # x let
-    nnkVarSet, # x 5 =
+    nnkVarSet, # x 5 = # TODO: Make this better, x 5 5 + = is not possible currently.
     nnkFunc # func [args] (...);
     
   PNaelNode* = ref TNaelNode

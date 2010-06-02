@@ -7,6 +7,8 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
 proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
 
+proc invalidTypeErr(got, expected: string): ref ERuntimeError =
+  return newException(ERuntimeError, "Error: Invalid types, got $1. Expected $2." % [got, expected])
 
 proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
   case cmnd
@@ -30,36 +32,78 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       elif first.kind == ntString and second.kind == ntString:
         dataStack.push(newString(second.value & first.value))
       else:
-        raise newException(ERuntimeError, 
-                "Error: Invalid types, got $1 and $2. Expected string, string or int, int." %
-                        [$first.kind, $second.kind])
+        raise invalidTypeErr($first.kind & " and " & $second.kind, "string, string or int, int")
+        
     elif cmnd == "-":
       if first.kind == ntInt and second.kind == ntInt:
         dataStack.push(newInt(second.iValue - first.iValue))
       else:
-        raise newException(ERuntimeError, 
-                "Error: Invalid types, got $1 and $2. Expected int, int." %
-                        [$first.kind, $second.kind])
+        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int")
+        
     elif cmnd == "*":
       if first.kind == ntInt and second.kind == ntInt:
         dataStack.push(newInt(second.iValue * first.iValue))
       else:
-        raise newException(ERuntimeError, 
-                "Error: Invalid types, got $1 and $2. Expected int, int." %
-                        [$first.kind, $second.kind])
+        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int")
                         
     elif cmnd == "/":
       if first.kind == ntInt and second.kind == ntInt:
         dataStack.push(newInt(second.iValue div first.iValue))
       else:
-        raise newException(ERuntimeError, 
-                "Error: Invalid types, got $1 and $2. Expected int, int." %
-                        [$first.kind, $second.kind])
+        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int")
+  
+  of "!":
+    # Negate a boolean
+    var first = dataStack.pop()
+    if first.kind == ntBool:
+      dataStack.push(newBool(not first.bValue))
+    else:
+      raise invalidTypeErr($first.kind, "bool")
+  
+  of "if":
+    # Depending on a boolean on the stack, executes a particular quotation
+    # (cond) (then) (else) if
+    var theElse = datastack.pop()
+    var then = datastack.pop()
+    var cond = datastack.pop()
+    
+    if cond.kind == ntQuot and theElse.kind == ntQuot and then.kind == ntQuot:
+      interpretQuotation(cond, dataStack, vars, gvars)
+      var boolean = dataStack.pop()
+      if boolean.kind != ntBool:
+        raise invalidTypeErr($boolean.kind, "bool")
+      
+      if boolean.bValue:
+        interpretQuotation(then, dataStack, vars, gvars)
+      else:
+        interpretQuotation(theElse, dataStack, vars, gvars)
+    else:
+      raise invalidTypeErr($cond.kind & ", " & $theElse.kind & " and " & $then.kind,
+              "quot, quot, quot")
+  of "while":
+    # Loop until cond becomes false
+    # (cond) (do) while
+    var do = dataStack.pop()
+    var cond = dataStack.pop()
+    
+    if do.kind == ntQuot and cond.kind == ntQuot:
+      interpretQuotation(cond, dataStack, vars, gvars)
+      var boolean = dataStack.pop()
+      if boolean.kind != ntBool:
+        raise invalidTypeErr($boolean.kind, "bool")
+  
+      while boolean.bValue:
+        interpretQuotation(cond, dataStack, vars, gvars)
+        boolean = dataStack.pop()
+        
+        interpretQuotation(do, dataStack, vars, gvars)
   
   else:
     var tVar: PType
     if not ("." in cmnd):
       tVar = vars.getVar(cmnd)
+      if tVar == nil:
+        tVar = gvars.getVar(cmnd)
     else:
       # cmnd contains a dot
       var before = cmnd.split('.')[0]
@@ -108,7 +152,7 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
   
   for item in items(quot.lvalue):
     case item.kind
-    of ntInt, ntFloat, ntString, ntList, ntQuot, ntDict, ntNil, ntFunc:
+    of ntInt, ntFloat, ntString, ntBool, ntList, ntQuot, ntDict, ntNil, ntFunc:
       dataStack.push(item)
     of ntCmnd:
       command(item.value, dataStack, vars, gvars)

@@ -49,6 +49,20 @@ Push a string, and write it to stdout. That's how you call statements by the way
 
 `Hello, world!`
 
+### ! ###
+Negates a boolean.
+
+`>> false !`
+
+`stack → [true]`
+
+### if ###
+Executes a quotation based on the value on the stack.
+
+`>> (true) ("The value on the stack is True" print) ("The value on the stack is False" print) if`
+
+`The value on the stack is True`
+
 ## Variables ##
 Before you can set a variables value you need to declare it.
 
@@ -112,4 +126,5 @@ A thing to remember about functions is that they do not share scope. Everything 
 `>> instance.field instance.field1 /`
 
 `5`
+
 

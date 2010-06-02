@@ -11,6 +11,7 @@ type
     ntInt,
     ntFloat,
     ntString,
+    ntBool,
     ntList,
     ntQuot,
     ntDict,
@@ -28,6 +29,8 @@ type
       fValue*: float64
     of ntString, ntCmnd:
       value*: string
+    of ntBool:
+      bValue*: bool
     of ntList, ntQuot:
       lValue*: seq[PType]
     of ntDict:
@@ -57,6 +60,10 @@ proc toString*(item: PType, stack = False): string =
       return "\"" & item.value & "\""
     else:
       return item.value
+      
+  of ntBool:
+    return $item.bValue
+    
   of ntList:
     result.add("[")
     for i in 0 .. len(item.lValue)-1:
@@ -131,6 +138,11 @@ proc newString*(value: string): PType =
   result.kind = ntString
   result.value = value
 
+proc newBool*(value: bool): PType =
+  new(result)
+  result.kind = ntBool
+  result.bValue = value
+
 proc newList*(value: seq[PType]): PType =
   new(result)
   result.kind = ntList
@@ -174,6 +186,9 @@ proc addStandard*(vars: var PType) =
   var modulesVar: PType # [["name", {locals}, {globals}], ...]
   modulesVar = newList(@[])
   vars.dValue.add(("__modules__", modulesVar))
+  
+  vars.dValue.add(("false", newBool(False)))
+  vars.dValue.add(("true", newBool(True)))
   
 proc getVar*(vars: var PType, name: string): PType =
   if vars.kind != ntDict:
