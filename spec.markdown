@@ -63,12 +63,19 @@ Executes a quotation based on the value on the stack.
 
 `The value is True`
 
+### while ###
+Executes a quotation until the *cond* quotation pushes false on the stack
+
+`>> (true) ("Infinite loop" print) while`
+
+`Infinite loop` * forever
+
 ## Variables ##
 Before you can set a variables value you need to declare it.
 
 `>> x let`
 
-You can then set it to whatever value you want. nael is dynamically typed language.
+You can then set it to whatever value you want. nael is a dynamically typed language.
 
 `>> x 123 =`
 
@@ -126,5 +133,3 @@ A thing to remember about functions is that they do not share scope. Everything 
 `>> instance.field instance.field1 /`
 
 `5`
-
-
