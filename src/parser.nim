@@ -36,9 +36,6 @@ type
     of nnkFloatLit:
       fValue*: float64
 
-var lineCount: int = 0
-var charCount: int = 0
-
 proc getChar(tokens: seq[string], i: int): int =
   result = 0
   for t in 0 .. len(tokens)-1:
@@ -76,27 +73,23 @@ proc parse*(code: string): seq[PNaelNode] =
   # Parse code into an AST
   result = @[]
   
-  # Reset the values
-  lineCount = 0
-  charCount = 0
-  
-  var tokens = analyse(code)    
+  var tokens = analyse(code) # (token, lineNum, charNum)
   
   var i = 0
   while True:
     if tokens.len()-1 < i:
       break
     
-    case tokens[i]
+    case tokens[i][0]
     of "(":
       # Everything in between ( and ) is one token.
-      if tokens.len()-i > 2 and tokens[i + 2] == ")":
+      if tokens.len()-i > 2 and tokens[i + 2][0] == ")":
         var quotNode: PNaelNode
         new(quotNode)
-        quotNode.lineNum = lineCount
-        quotNode.charNum = charCount
+        quotNode.lineNum = tokens[i][1]
+        quotNode.charNum = tokens[i][2]
         quotNode.kind = nnkQuotLit
-        quotNode.children = parse(tokens[i + 1])
+        quotNode.children = parse(tokens[i + 1][0])
         
         # Skip the quotation and ')'
         inc(i, 2)
@@ -104,18 +97,18 @@ proc parse*(code: string): seq[PNaelNode] =
         result.add(quotNode)
       else:
         raise newException(ESystem, 
-            "[$1, $2] SyntaxError: Quotation not ended" %
-                [$lineCount, $charCount])
+            "[Line: $1 Char: $2] SyntaxError: Quotation not ended" %
+                [$tokens[i][1], $tokens[i][2]])
     
     of "[":
       # Everything in between [ and ] is one token.
-      if tokens.len()-i > 2 and tokens[i + 2] == "]":
+      if tokens.len()-i > 2 and tokens[i + 2][0] == "]":
         var listNode: PNaelNode
         new(listNode)
-        listNode.lineNum = lineCount
-        listNode.charNum = charCount
+        listNode.lineNum = tokens[i][1]
+        listNode.charNum = tokens[i][2]
         listNode.kind = nnkListLit
-        listNode.children = parse(tokens[i + 1])
+        listNode.children = parse(tokens[i + 1][0])
       
         # skip the list and ']'
         inc(i, 2)
@@ -123,18 +116,18 @@ proc parse*(code: string): seq[PNaelNode] =
         result.add(listNode)
       else:
         raise newException(ESystem, 
-            "[$1, $2] SyntaxError: List not ended" %
-                [$lineCount, $charCount])
+            "[Line: $1 Char: $2] SyntaxError: List not ended" %
+                [$tokens[i][1], $tokens[i][2]])
     
     of "\"":
       # Everything in between " and " is one token.
-      if tokens.len()-i > 2 and tokens[i + 2] == "\"":
+      if tokens.len()-i > 2 and tokens[i + 2][0] == "\"":
         var strNode: PNaelNode
         new(strNode)
-        strNode.lineNum = lineCount
-        strNode.charNum = charCount
+        strNode.lineNum = tokens[i][1]
+        strNode.charNum = tokens[i][2]
         strNode.kind = nnkStringLit
-        strNode.value = tokens[i + 1]
+        strNode.value = tokens[i + 1][0]
         
         # skip the string and "
         inc(i, 2)
@@ -142,49 +135,39 @@ proc parse*(code: string): seq[PNaelNode] =
         result.add(strNode)
       else:
         raise newException(ESystem, 
-            "[$1, $2] SyntaxError: String not ended" %
-                [$lineCount, $charCount])
-    
-      # Line/Char guidelines ONLY
-    of "\\n":
-      inc(lineCount)
-      charCount = 0
-    
-    of ",", " ":
-      # Don't increase here, it gets increased before 'inc(i)' is called.
-      # Ignore these...
-      nil
+            "[Line: $1 Char: $2] SyntaxError: String not ended" %
+                [$tokens[i][1], $tokens[i][2]])
     
     else:
-      if tokenIsNumber(tokens[i]):
+      if tokenIsNumber(tokens[i][0]):
         var intNode: PNaelNode
         new(intNode)
-        intNode.lineNum = lineCount
-        intNode.charNum = charCount
+        intNode.lineNum = tokens[i][1]
+        intNode.charNum = tokens[i][2]
         intNode.kind = nnkIntLit
-        intNode.iValue = tokens[i].parseInt()
+        intNode.iValue = tokens[i][0].parseInt()
         result.add(intNode)
       
-      elif tokenIsFloat(tokens[i]):
+      elif tokenIsFloat(tokens[i][0]):
         var floatNode: PNaelNode
         new(floatNode)
-        floatNode.lineNum = lineCount
-        floatNode.charNum = charCount
+        floatNode.lineNum = tokens[i][1]
+        floatNode.charNum = tokens[i][2]
         floatNode.kind = nnkFloatLit
-        floatNode.fValue = tokens[i].parseFloat()
+        floatNode.fValue = tokens[i][0].parseFloat()
         result.add(floatNode)
       
       else:
         # Test for special expressions here.
         
-        if tokens.len()-i > 1 and tokens[i + 1] == "let":
+        if tokens.len()-i > 1 and tokens[i + 1][0] == "let":
           # x let -> VarDeclaration(x)
           var declNode: PNaelNode
           new(declNode)
-          declNode.lineNum = lineCount
-          declNode.charNum = charCount
+          declNode.lineNum = tokens[i][1]
+          declNode.charNum = tokens[i][2]
           declNode.kind = nnkVarDeclar
-          declNode.value = tokens[i]
+          declNode.value = tokens[i][0]
           
           # Move from x to let, then the inc(i) at the bottom will move
           # to the token after 'let'
@@ -192,17 +175,17 @@ proc parse*(code: string): seq[PNaelNode] =
       
           result.add(declNode)
           
-        elif tokens.len()-i > 7 and tokens[i + 7] == ";":
+        elif tokens.len()-i > 7 and tokens[i + 7][0] == ";":
           # each [ is one token, same goes for (, ] and ]
           # foo [args] (...);
           var funcNode: PNaelNode
           new(funcNode)
-          funcNode.lineNum = lineCount
-          funcNode.charNum = charCount
+          funcNode.lineNum = tokens[i][1]
+          funcNode.charNum = tokens[i][2]
           funcNode.kind = nnkFunc
-          funcNode.fName = tokens[i]
-          funcNode.args = parse(tokens[i + 1] & tokens[i + 2] & tokens[i + 3])[0]
-          funcNode.quot = parse(tokens[i + 4] & tokens[i + 5] & tokens[i + 6])[0]
+          funcNode.fName = tokens[i][0]
+          funcNode.args = parse(tokens[i + 1][0] & tokens[i + 2][0] & tokens[i + 3][0])[0]
+          funcNode.quot = parse(tokens[i + 4][0] & tokens[i + 5][0] & tokens[i + 6][0])[0]
           
           inc(i, 7)
           
@@ -214,14 +197,11 @@ proc parse*(code: string): seq[PNaelNode] =
           
           var cmndNode: PNaelNode
           new(cmndNode)
-          cmndNode.lineNum = lineCount
-          cmndNode.charNum = charCount
+          cmndNode.lineNum = tokens[i][1]
+          cmndNode.charNum = tokens[i][2]
           cmndNode.kind = nnkCommand
-          cmndNode.value = tokens[i]
+          cmndNode.value = tokens[i][0]
           result.add(cmndNode)
-      
-    # Increase the char count, by the length of the token.
-    inc(charCount, tokens[i].len())
     
     inc(i)
 

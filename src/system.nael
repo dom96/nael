@@ -1,5 +1,5 @@
 while2 [cond, do] ((cond get call) (do get call cond get do get while2) () if);
-times [do, i] (count let, count 1 =, (count get, i get, == !) (do get call, count count get 1 + =,) while );
+times [do, i] (count let, count 1 =, (count get, i get, == !) (do get call, count count get 1 + =) while );
 dup [] (__stack__ len 1 -, __stack__ swap nth);
 clear [] ((del) __stack__ len 1 - times);
 dip [value, quo] (quo get call value get);

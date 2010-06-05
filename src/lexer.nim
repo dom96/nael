@@ -3,7 +3,15 @@
 
 # Lexical analyser
 
-proc analyse*(code: string): seq[string] =
+type
+  TTokens = tuple[token: string, curLine, curChar: int]
+
+
+proc analyse*(code: string): seq[TTokens] =
+  var currentLine = 0
+  var currentChar = 0
+
+
   result = @[]
 
   var r = ""
@@ -13,27 +21,25 @@ proc analyse*(code: string): seq[string] =
     case code[i]
     of '\0':
       if r != "":
-        result.add(r)
+        result.add((r, currentLine, currentChar))
       break
     of ' ', ',', '\L', '\c': # Chars to ignore, these also mark the end of a token
       if r != "":
-        result.add(r)
+        result.add((r, currentLine, currentChar))
         r = ""
     
       if code[i] == '\L' or code[i] == '\c':
-        result.add("\\n")
-      else:
-        # Add the ' '(Space) or ','(comma)
-        result.add($code[i])
+        inc(currentLine)
+        currentChar = 0
     
     of '[', '(':
       # Add any token which is left.
       if r != "":
-        result.add(r)
+        result.add((r, currentLine, currentChar))
         r = ""
       
       # Add [ or ( as a seperate token.
-      result.add($code[i])
+      result.add(($code[i], currentLine, currentChar))
       
       inc(i) # Skip the [ or (
       var opMet = 1 # The number of times [ or ( was matched.
@@ -42,7 +48,7 @@ proc analyse*(code: string): seq[string] =
         case code[i]
         of '\0':
           if r != "":
-            result.add(r)
+            result.add((r, currentLine, currentChar))
           return
         of '[', '(':
           inc(opMet)
@@ -50,11 +56,11 @@ proc analyse*(code: string): seq[string] =
         of ']', ')':
           if opMet == 1:
             # Add everything between ( and ) or [ and ]
-            result.add(r)
+            result.add((r, currentLine, currentChar))
             r = ""
             
             # Add ) or ]
-            result.add($code[i])
+            result.add(($code[i], currentLine, currentChar))
             break
           else:
             dec(opMet)
@@ -68,11 +74,11 @@ proc analyse*(code: string): seq[string] =
     of '\"':
       # Add any token which is waiting to get added
       if r != "":
-        result.add(r)
+        result.add((r, currentLine, currentChar))
         r = ""
       
       # Add " as a seperate token
-      result.add($code[i])
+      result.add(($code[i], currentLine, currentChar))
       
       # skip the "
       inc(i)
@@ -81,13 +87,13 @@ proc analyse*(code: string): seq[string] =
         case code[i]
         of '\0':
           if r != "":
-            result.add(r)
+            result.add((r, currentLine, currentChar))
           return
         of '"':
-          result.add(r)
+          result.add((r, currentLine, currentChar))
           r = ""
           
-          result.add($code[i])
+          result.add(($code[i], currentLine, currentChar))
           break
         else:
           r.add($code[i])
@@ -97,7 +103,7 @@ proc analyse*(code: string): seq[string] =
     of '#':
       # Add any token which is waiting to get added
       if r != "":
-        result.add(r)
+        result.add((r, currentLine, currentChar))
         r = ""
         
       while True:
@@ -105,6 +111,8 @@ proc analyse*(code: string): seq[string] =
         of '\0':
           return
         of '\L', '\c':
+          inc(currentLine)
+          currentChar = 0
           break
         else:
           nil
@@ -112,16 +120,13 @@ proc analyse*(code: string): seq[string] =
     
     else:
       r = r & code[i]
-      
+    
+    inc(currentChar)
     inc(i)
       
-      
-# Spaces, commas and newlines(\n as text). Are added to the result
-# only as a guideline, for the currently executed line and char. 
-      
 when isMainModule:
-  for i in items(analyse("x let, x 5 = x print\ntest")):
+  for i, cL, cC in items(analyse("x let,\n x 5 =\n #x print\ntest")):
     if i != "":
-      echo(i)
+      echo(i, "     ", cL)
     else:
       echo("<>EMPTY<>")
