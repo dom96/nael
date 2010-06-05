@@ -16,7 +16,10 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     echo(toString(first))
   of "call":
     var first = dataStack.pop()
-    interpretQuotation(first, dataStack, vars, gvars)
+    if first.kind == ntQuot:
+      interpretQuotation(first, dataStack, vars, gvars)
+    else:
+      raise invalidTypeErr($first.kind, "quot")
   of "import":
     var first = dataStack.pop()
     if first.kind == ntString:
@@ -30,26 +33,38 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         dataStack.push(newInt(second.iValue + first.iValue))
       elif first.kind == ntString and second.kind == ntString:
         dataStack.push(newString(second.value & first.value))
+      elif first.kind == ntFloat and second.kind == ntFloat:
+        dataStack.push(newFloat(second.fvalue + first.fvalue))
+      elif first.kind == ntInt and second.kind == ntFloat:
+        dataStack.push(newFloat(second.fvalue + float(first.ivalue)))
+      elif first.kind == ntFloat and second.kind == ntInt:
+        dataStack.push(newFloat(float(second.ivalue) + first.fvalue))
       else:
-        raise invalidTypeErr($first.kind & " and " & $second.kind, "string, string or int, int")
+        raise invalidTypeErr($first.kind & " and " & $second.kind, "[string, string], [int, int], [float, float] or [float, int]")
         
     elif cmnd == "-":
       if first.kind == ntInt and second.kind == ntInt:
         dataStack.push(newInt(second.iValue - first.iValue))
+      elif first.kind == ntFloat and second.kind == ntFloat:
+        dataStack.push(newFloat(second.fvalue - first.fvalue))
       else:
-        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int")
+        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int or float, float")
         
     elif cmnd == "*":
       if first.kind == ntInt and second.kind == ntInt:
         dataStack.push(newInt(second.iValue * first.iValue))
+      elif first.kind == ntFloat and second.kind == ntFloat:
+        dataStack.push(newFloat(second.fvalue * first.fvalue))
       else:
-        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int")
+        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int or float, float")
                         
     elif cmnd == "/":
       if first.kind == ntInt and second.kind == ntInt:
         dataStack.push(newInt(second.iValue div first.iValue))
+      elif first.kind == ntFloat and second.kind == ntFloat:
+        dataStack.push(newFloat(second.fvalue / first.fvalue))
       else:
-        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int")
+        raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int or float, float")
   
   of "!":
     # Negate a boolean
@@ -108,87 +123,167 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var second = dataStack.pop()
     
     if second.kind == ntVar:
-      var index = vars.getVarIndex(second.value)
-      if index == -1:
-        gvars.setVar(second.value, first)
-      else:
-        vars.setVar(second.value, first)
+      if second.loc == 1:
+        gvars.setVar(second.vvalue, first)
+      elif second.loc == 0:
+        vars.setVar(second.vvalue, first)
     else:
       raise invalidTypeErr($second.kind, "var")
   
   of "get":
     var first = dataStack.pop()
     if first.kind == ntVar:
-      var tVar = vars.getVar(first.value)
-      if tVar == nil:
-        tVar = gvars.getVar(first.value)
+      var tVar: PType
+      
+      if first.loc == 0:
+        tVar = vars.getVar(first.vvalue)
+      elif first.loc == 1:
+        tVar = gvars.getVar(first.vvalue)
+      else:
+        raise newException(ERuntimeError, "Error: Variable's location is incorrect, got $1" % [$first.loc])
       
       if tVar == nil:
-        raise newException(ERuntimeError, "Error: $1 is not declared." % [cmnd])
+        raise newException(ERuntimeError, "Error: $1 is not declared." % [first.vvalue])
       
       dataStack.push(tVar)
     
     else:
       raise invalidTypeErr($first.kind, "var")
+  
+  of "del":
+    var v = dataStack.pop()
+    if v.kind == ntVar:
+      if v.loc == 0:
+        vars.remVar(v.vvalue)
+      elif v.loc == 1:
+        gvars.remVar(v.vvalue)
     
   
+  of "__stack__":
+    dataStack.push(newList(dataStack.stack))
+  
+  of "nth":
+    # [list] 5 nth
+    # Gets the 5th item of list
+    var index = dataStack.pop()
+    var list = dataStack.pop()
+    if index.kind == ntInt and list.kind == ntlist:
+      # WTF, something is really wrong with exceptions
+      #try:
+      dataStack.push(list.lValue[int(index.iValue)])
+      #except:
+      #  raise newException(ERuntimeError, "Error: $1" % [getCurrentExceptionMsg()])
+    else:
+      raise invalidTypeErr($index.kind & " and " & $list.kind, "int and list")
+  
+  of "len":
+    # [list] len
+    # Pushes the length of a list
+    var list = dataStack.pop()
+    if list.kind == ntList:
+      dataStack.push(newInt(list.lValue.len()))
+    else:
+      raise invalidTypeErr($list.kind, "list")
+  
+  of "swap":
+    # [1, 2] -> [2, 1]
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    dataStack.push(first)
+    dataStack.push(second)
+  
+  of "sqrt":
+    var first = dataStack.pop()
+    if first.kind == ntFloat:
+      dataStack.push(newFloat(sqrt(first.fValue)))
+    else:
+      raise invalidTypeErr($first.kind, "float")
+  
+  of "pow":
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    if first.kind == ntFloat and second.kind == ntFloat:
+      dataStack.push(newFloat(pow(second.fValue, first.fValue)))
+    else:
+      raise invalidTypeErr($first.kind & " and " & $second.kind, "float and float")
+  
   else:
+    # Variables and Functions
     var tVar: PType
+    var varLoc: int = -1 # 0 for local, 1 for global
+    var module: seq[PType]
+    
     if not ("." in cmnd):
       tVar = vars.getVar(cmnd)
+      varLoc = 0
       if tVar == nil:
         tVar = gvars.getVar(cmnd)
+        varLoc = 1
     else:
       # cmnd contains a dot
       var before = cmnd.split('.')[0]
       var after = cmnd.split('.')[1]
       
-      var module = getModule(before, gvars) # [name, {locals}, {globals}]
-      if module == nil: tVar = nil
+      module = getModule(before, gvars) # [name, {locals}, {globals}]
+      if module == nil:
+        tVar = nil
       else:
         tVar = module[2].getVar(after)
+        varLoc = 1
     
     if tVar == nil:
       raise newException(ERuntimeError, "Error: $1 is not declared." % [cmnd])
     
     if tVar.kind != ntFunc:
-      dataStack.push(newVar(cmnd))
+      dataStack.push(newVar(cmnd, varLoc))
     else:
       # Function call - Functions don't share scope, but they share the stack.
       var localVars = newVariables() # This functions local variables
+      var globalVars = newVariables() # This functions global variables
+      # Copy the current gvars to this functions globalVars
+      if module == nil:
+        globalVars.dValue = gvars.dValue
+      else:
+        globalVars.dValue = module[2].dValue
       
       # Add the arguments in reverse, so that the 'nael rule' applies
       # 5 6 foo -> foo(5,6)
-      # I have to add these to globals, so that functions called from this function
+      # I have to add the args to globals, so that functions called from this function
       # that have a quotation passed to them(with one of the var args..) works
-      # >> test [a] (a call);
-      # >> test2 [t] ((t print) test); 
-      # >> 2 test2
-      # 2
+      # Look at tests/funcargs.nael for more info
 
       for i in countdown(tVar.args.len()-1, 0):
         var arg = tVar.args[i]
         if arg.kind == ntCmnd:
-          try:
-            var first = dataStack.pop()
-            
-            gvars.declVar(arg.value)
-            gvars.setVar(arg.value, first)
-          except EOverflow:
-            # TODO: Check if this works, After araq fixes the exception bug
-            raise newException(ERuntimeError, 
-                    "Error: $1 expects $2 args, got $3" %
-                            [cmnd, $(tVar.args.len()-1), $(i)])
+          #try:
+          var first = dataStack.pop()
+          globalVars.declVar(arg.value)
+          globalVars.setVar(arg.value, first)
+              
+          #except EOverflow:
+          #  # TODO: Check if this works, After araq fixes the exception bug
+          #  raise newException(ERuntimeError, 
+          #          "Error: $1 expects $2 args, got $3" %
+          #                  [cmnd, $(tVar.args.len()-1), $(i)])
 
         else:
           raise newException(ERuntimeError, "Error: " & cmnd &
                   " contains unexpected args, of kind " & $arg.kind)
+                  
       
-      interpretQuotation(tVar.quot, dataStack, localVars, gvars)
+      interpretQuotation(tVar.quot, dataStack, localVars, globalVars)
 
+      # TODO: Move the variables that were declared global in that function
+      # to gvars
+
+      discard """
       # Now we need to delete these args...
-      for i in countdown(tVar.args.len()-1, 0):
-        gvars.remVar(tVar.args[i].value)
+      for i in 0 .. tVar.args.len()-1:
+        echo(i, " ", tVar.args[i].value)
+        if modulegvars == nil:
+          gvars.remVar(tVar.args[i].value)
+        else:
+          modulegvars.remVar(tVar.args[i].value)"""
 
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType) =
   if quot.kind != ntQuot:

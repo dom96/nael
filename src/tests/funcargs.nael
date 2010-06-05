@@ -1,0 +1,4 @@
+test [a] (a get call);
+test2 [t] ((t get print) test); 
+2 test2
+# Should return 2

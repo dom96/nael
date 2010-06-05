@@ -2,7 +2,7 @@
 # 30 May 2010
 
 # Interpreter - Executes the AST
-import parser, strutils, os, times
+import parser, strutils, os, times, math
 
 type
   TDict* = seq[tuple[name: string, value: PType]]
@@ -19,7 +19,7 @@ type
     ntCmnd, # Exclusive to quotations.
     ntVar, # A pointer to a variable
     ntFunc, # Exclusively used only in variables
-    ntASTNode # A PNaelNode - VarDeclar VarSet etc, Are declared with this in quotations
+    ntASTNode # A PNaelNode - VarDeclar etc, Are declared with this in quotations
     
   PType* = ref TType
   TType* = object
@@ -28,8 +28,8 @@ type
       iValue*: int64
     of ntFloat:
       fValue*: float64
-    of ntString, ntCmnd, ntVar:
-      value*: string # for ntCmnd, name of cmnd. For ntVar name of var.
+    of ntString, ntCmnd:
+      value*: string # for ntCmnd, name of cmnd.
     of ntBool:
       bValue*: bool
     of ntList, ntQuot:
@@ -42,6 +42,9 @@ type
       quot*: PType
     of ntASTNode:
       node*: PNaelNode
+    of ntVar:
+      vvalue*: string
+      loc*: int # 0 for local, 1 for global
       
   TStack* = tuple[stack: seq[PType], limit: int]
   
@@ -85,7 +88,7 @@ proc toString*(item: PType, stack = False): string =
   of ntNil:
     result.add("nil")
   of ntVar:
-    result.add("<var '" & item.value & "'>")
+    result.add("<var '" & item.vvalue & "' loc=" & $item.loc & ">")
   of ntFunc:
     result.add("__func__")
   of ntAstNode:
@@ -191,10 +194,11 @@ proc newFunc*(node: PNaelNode): PType =
   result.args = args
   result.quot = toPType(node.quot)
 
-proc newVar*(name: string): PType =
+proc newVar*(name: string, loc: int): PType =
   new(result)
   result.kind = ntVar
-  result.value = name
+  result.vvalue = name
+  result.loc = loc
 
 proc newASTNode*(node: PNaelNode): PType = 
   new(result)
@@ -273,6 +277,9 @@ proc remVar*(vars: var PType, name: string) =
   for i in 0 .. len(vars.dValue)-1:
     if vars.dValue[i][0] == name:
       vars.dValue.del(i)
+      return
+      
+  raise newException(ERuntimeError, "Error: Unable to remove variable, it doesn't exist.")
 
 proc toPType(item: PNaelNode): PType =
   ## Converts a PNaelNode of any kind. Into a corresponding PType

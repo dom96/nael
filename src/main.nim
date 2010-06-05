@@ -5,7 +5,7 @@
 import interpreter, os
 
 when isMainModule:
-  if paramCount() == 0:
+  if paramCount() == 0 or paramCount() == -1:
     var dataStack = newStack(200)
     var vars = newVariables() # 'main' variables(They act as both local and global)
     vars.addStandard()
@@ -24,7 +24,11 @@ when isMainModule:
       echo("   ---------------------")
       echo("http://github.com/dom96/nael")
       echo("For license read license.txt")
+      discard stdin.readLine()
+        
     elif paramStr(1) == "-h" or paramStr(1) == "--help" or paramCount() > 0:
       echo("nael               Interpreter")
+      echo("nael -noDecoration Starts the interpreter, without >>")
       echo("nael -h[--help]    This help message")
       echo("nael -a[--about]   About")
+      
