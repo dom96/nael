@@ -20,6 +20,12 @@ proc analyse*(code: string): seq[string] =
         result.add(r)
         r = ""
     
+      if code[i] == '\L' or code[i] == '\c':
+        result.add("\\n")
+      else:
+        # Add the ' '(Space) or ','(comma)
+        result.add($code[i])
+    
     of '[', '(':
       # Add any token which is left.
       if r != "":
@@ -109,8 +115,12 @@ proc analyse*(code: string): seq[string] =
       
     inc(i)
       
+      
+# Spaces, commas and newlines(\n as text). Are added to the result
+# only as a guideline, for the currently executed line and char. 
+      
 when isMainModule:
-  for i in items(analyse("x let, x 5 = #x print\ntest")):
+  for i in items(analyse("x let, x 5 = x print\ntest")):
     if i != "":
       echo(i)
     else:

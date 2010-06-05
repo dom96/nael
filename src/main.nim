@@ -14,7 +14,7 @@ when isMainModule:
       stdout.write(">> ")
       try:
         exec(stdin.readLine(), dataStack, vars, vars)
-      except ERuntimeError, EOverflow, EInvalidValue:
+      except ERuntimeError, EOverflow, EInvalidValue, ESystem:
         echo(getCurrentExceptionMsg())
         
       printStack(dataStack)

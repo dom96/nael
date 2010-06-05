@@ -50,6 +50,12 @@ type
   
   ERuntimeError* = object of EBase
 
+var currentLine = 0 # The line number of the code being executed
+var currentChar = 0 # The char number of the code being executed
+
+proc errorLine(): string =
+  result = "[$1, $2] " % [$currentLine, $currentChar]
+
 # Stack
 proc toString*(item: PType, stack = False): string =
   result = ""
@@ -98,7 +104,7 @@ proc toString*(item: PType, stack = False): string =
     of nnkFunc:
       result.add("Func(" & item.node.fName & ")")
     else:
-      raise newException(ERuntimeError, "Error: Unexpected AstNode in `$`, " & $item.node.kind)
+      raise newException(ERuntimeError, errorLine() & "Error: Unexpected AstNode in `$`, " & $item.node.kind)
 
 proc isEqual*(first, second: PType): bool =
   if first.kind == second.kind:
@@ -140,13 +146,13 @@ proc newStack*(limit: int): TStack =
 
 proc push*(stack: var TStack, item: PType) =
   if stack.stack.len() >= stack.limit:
-    raise newException(EOverflow, "Error: Stack overflow")
+    raise newException(EOverflow, errorLine() & "Error: Stack overflow")
     
   stack.stack.add(item)
 
 proc pop*(stack: var TStack): PType =
   if stack.stack.len() < 1:
-    raise newException(EOverflow, "Error: Stack underflow")
+    raise newException(EOverflow, errorLine() & "Error: Stack underflow")
     
   return stack.stack.pop()
 
@@ -189,7 +195,7 @@ proc newFunc*(node: PNaelNode): PType =
     if n.kind == nnkCommand:
       args.add(newCmnd(n.value))
     else:
-      raise newException(ERuntimeError, "Error: Function declaration incorrect, got " & $n.kind & " for args")
+      raise newException(ERuntimeError, errorLine() & "Error: Function declaration incorrect, got " & $n.kind & " for args")
 
   result.args = args
   result.quot = toPType(node.quot)
@@ -225,7 +231,7 @@ proc addStandard*(vars: var PType) =
   
 proc getVar*(vars: var PType, name: string): PType =
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, "Error: The variable list needs to be a dict.")
+    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
 
   for vname, value in items(vars.dValue):
     if vname == name:
@@ -235,7 +241,7 @@ proc getVar*(vars: var PType, name: string): PType =
 
 proc getVarIndex*(vars: var PType, name: string): int =
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, "Error: The variable list needs to be a dict.")
+    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
 
   for i in 0 .. len(vars.dValue)-1:
     if vars.dValue[i][0] == name:
@@ -248,10 +254,10 @@ proc declVar*(vars: var PType, name: string) =
 
   # TODO: Check if the name contains illegal characters.
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, "Error: The variable list needs to be a dict.")
+    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
 
   if getVarIndex(vars, name) != -1:
-    raise newException(ERuntimeError, "Error: $1 is already declared." % [name])
+    raise newException(ERuntimeError, errorLine() & "Error: $1 is already declared." % [name])
 
   var theVar: PType
   new(theVar)
@@ -262,24 +268,24 @@ proc declVar*(vars: var PType, name: string) =
 proc setVar*(vars: var PType, name: string, theVar: PType) =
   # Sets a variables value.
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, "Error: The variable list needs to be a dict.")
+    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
   
   var varIndex = vars.getVarIndex(name)
   if varIndex == -1:
-    raise newException(ERuntimeError, "Error: Variable $1 is not declared." % [name])
+    raise newException(ERuntimeError, errorLine() & "Error: Variable $1 is not declared." % [name])
     
   vars.dValue[varIndex][1] = theVar
   
 proc remVar*(vars: var PType, name: string) =
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, "Error: The variable list needs to be a dict.")
+    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
 
   for i in 0 .. len(vars.dValue)-1:
     if vars.dValue[i][0] == name:
       vars.dValue.del(i)
       return
       
-  raise newException(ERuntimeError, "Error: Unable to remove variable, it doesn't exist.")
+  raise newException(ERuntimeError, errorLine() & "Error: Unable to remove variable, it doesn't exist.")
 
 proc toPType(item: PNaelNode): PType =
   ## Converts a PNaelNode of any kind. Into a corresponding PType
@@ -299,7 +305,7 @@ proc toPType(item: PNaelNode): PType =
     result.kind = ntQuot
     result.lValue = @[]
   else:
-    raise newException(ESystem, "Error: Unexpected nael node kind, " & $item.kind)
+    raise newException(ESystem, errorLine() & "Error: Unexpected nael node kind, " & $item.kind)
   
   # Add all the children of quotations and lists.
   if item.kind == nnkListLit or item.kind == nnkQuotLit:
@@ -308,7 +314,7 @@ proc toPType(item: PNaelNode): PType =
       of nnkCommand, nnkVarDeclar, nnkFunc:
         # Commands are not allowed in Lists.
         if item.kind == nnkListLit:
-          raise newException(ERuntimeError, "Error: $1 not allowed in a list literal" % [$node.kind])
+          raise newException(ERuntimeError, errorLine() & "Error: $1 not allowed in a list literal" % [$node.kind])
         elif item.kind == nnkQuotLit:
           if node.kind == nnkCommand:
             result.lValue.add(newCmnd(node.value))
@@ -322,7 +328,15 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) # fro
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType) # from core.nim
 
 proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PType) =
+  # Reset the values
+  currentLine = 0
+  currentChar = 0
   for node in items(ast):
+    # Set these before any execution begins,
+    # so that when errors occur they get the right info.
+    currentLine = node.lineNum
+    currentChar = node.charNum
+  
     case node.kind
     of nnkCommand:
       command(node.value, dataStack, vars, gvars)
@@ -334,6 +348,8 @@ proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PTy
       if gvars.getVarIndex(node.fName) == -1:
         gvars.declVar(node.fName)
       gvars.setVar(node.fName, newFunc(node))
+
+
 
 include core
 

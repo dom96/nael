@@ -20,6 +20,8 @@ type
   PNaelNode* = ref TNaelNode
     
   TNaelNode* = object
+    lineNum*: int
+    charNum*: int
     case kind*: TNaelNodeKind
     of nnkListLit, nnkQuotLit:
       children*: seq[PNaelNode]
@@ -30,11 +32,12 @@ type
       args*: PNaelNode # List
       quot*: PNaelNode # Quotation
     of nnkIntLit:
-      iValue*: int
+      iValue*: int64
     of nnkFloatLit:
-      fValue*: float
-      
-  ESyntaxError* = object of EBase
+      fValue*: float64
+
+var lineCount: int = 0
+var charCount: int = 0
 
 proc getChar(tokens: seq[string], i: int): int =
   result = 0
@@ -73,6 +76,10 @@ proc parse*(code: string): seq[PNaelNode] =
   # Parse code into an AST
   result = @[]
   
+  # Reset the values
+  lineCount = 0
+  charCount = 0
+  
   var tokens = analyse(code)    
   
   var i = 0
@@ -86,6 +93,8 @@ proc parse*(code: string): seq[PNaelNode] =
       if tokens.len()-i > 2 and tokens[i + 2] == ")":
         var quotNode: PNaelNode
         new(quotNode)
+        quotNode.lineNum = lineCount
+        quotNode.charNum = charCount
         quotNode.kind = nnkQuotLit
         quotNode.children = parse(tokens[i + 1])
         
@@ -94,15 +103,17 @@ proc parse*(code: string): seq[PNaelNode] =
         
         result.add(quotNode)
       else:
-        raise newException(ESyntaxError, 
-            "[Char: $1] SyntaxError: Quotation not ended" %
-                [$getChar(tokens, i)])
+        raise newException(ESystem, 
+            "[$1, $2] SyntaxError: Quotation not ended" %
+                [$lineCount, $charCount])
     
     of "[":
       # Everything in between [ and ] is one token.
       if tokens.len()-i > 2 and tokens[i + 2] == "]":
         var listNode: PNaelNode
         new(listNode)
+        listNode.lineNum = lineCount
+        listNode.charNum = charCount
         listNode.kind = nnkListLit
         listNode.children = parse(tokens[i + 1])
       
@@ -111,15 +122,17 @@ proc parse*(code: string): seq[PNaelNode] =
     
         result.add(listNode)
       else:
-        raise newException(ESyntaxError, 
-            "[Char: $1] SyntaxError: List not ended" %
-                [$getChar(tokens, i)])
+        raise newException(ESystem, 
+            "[$1, $2] SyntaxError: List not ended" %
+                [$lineCount, $charCount])
     
     of "\"":
       # Everything in between " and " is one token.
       if tokens.len()-i > 2 and tokens[i + 2] == "\"":
         var strNode: PNaelNode
         new(strNode)
+        strNode.lineNum = lineCount
+        strNode.charNum = charCount
         strNode.kind = nnkStringLit
         strNode.value = tokens[i + 1]
         
@@ -128,14 +141,26 @@ proc parse*(code: string): seq[PNaelNode] =
         
         result.add(strNode)
       else:
-        raise newException(ESyntaxError, 
-            "[Char: $1] SyntaxError: String not ended" %
-                [$getChar(tokens, i)])
+        raise newException(ESystem, 
+            "[$1, $2] SyntaxError: String not ended" %
+                [$lineCount, $charCount])
+    
+      # Line/Char guidelines ONLY
+    of "\\n":
+      inc(lineCount)
+      charCount = 0
+    
+    of ",", " ":
+      # Don't increase here, it gets increased before 'inc(i)' is called.
+      # Ignore these...
+      nil
     
     else:
       if tokenIsNumber(tokens[i]):
         var intNode: PNaelNode
         new(intNode)
+        intNode.lineNum = lineCount
+        intNode.charNum = charCount
         intNode.kind = nnkIntLit
         intNode.iValue = tokens[i].parseInt()
         result.add(intNode)
@@ -143,6 +168,8 @@ proc parse*(code: string): seq[PNaelNode] =
       elif tokenIsFloat(tokens[i]):
         var floatNode: PNaelNode
         new(floatNode)
+        floatNode.lineNum = lineCount
+        floatNode.charNum = charCount
         floatNode.kind = nnkFloatLit
         floatNode.fValue = tokens[i].parseFloat()
         result.add(floatNode)
@@ -154,6 +181,8 @@ proc parse*(code: string): seq[PNaelNode] =
           # x let -> VarDeclaration(x)
           var declNode: PNaelNode
           new(declNode)
+          declNode.lineNum = lineCount
+          declNode.charNum = charCount
           declNode.kind = nnkVarDeclar
           declNode.value = tokens[i]
           
@@ -168,6 +197,8 @@ proc parse*(code: string): seq[PNaelNode] =
           # foo [args] (...);
           var funcNode: PNaelNode
           new(funcNode)
+          funcNode.lineNum = lineCount
+          funcNode.charNum = charCount
           funcNode.kind = nnkFunc
           funcNode.fName = tokens[i]
           funcNode.args = parse(tokens[i + 1] & tokens[i + 2] & tokens[i + 3])[0]
@@ -183,10 +214,15 @@ proc parse*(code: string): seq[PNaelNode] =
           
           var cmndNode: PNaelNode
           new(cmndNode)
+          cmndNode.lineNum = lineCount
+          cmndNode.charNum = charCount
           cmndNode.kind = nnkCommand
           cmndNode.value = tokens[i]
           result.add(cmndNode)
       
+    # Increase the char count, by the length of the token.
+    inc(charCount, tokens[i].len())
+    
     inc(i)
 
 # for Debugging ONLY
@@ -225,9 +261,8 @@ proc `$`(ast: seq[PNaelNode]): string =
   for n in items(ast):
     result.add($n & "\n")
 
-
 when isMainModule:
-  echo parse("-5 56 - -56.7")
+  echo parse("-5\n \n 56 - (-56.7")
 
   discard """
 
