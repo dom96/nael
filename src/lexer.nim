@@ -88,13 +88,29 @@ proc analyse*(code: string): seq[string] =
         
         inc(i)
     
+    of '#':
+      # Add any token which is waiting to get added
+      if r != "":
+        result.add(r)
+        r = ""
+        
+      while True:
+        case code[i]
+        of '\0':
+          return
+        of '\L', '\c':
+          break
+        else:
+          nil
+        inc(i)
+    
     else:
       r = r & code[i]
       
     inc(i)
       
 when isMainModule:
-  for i in items(analyse("x let, x 5 = x print")):
+  for i in items(analyse("x let, x 5 = #x print\ntest")):
     if i != "":
       echo(i)
     else:

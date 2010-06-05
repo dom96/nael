@@ -5,6 +5,7 @@
 
 proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
+proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType)
 
 proc invalidTypeErr(got, expected: string): ref ERuntimeError =
   return newException(ERuntimeError, "Error: Invalid types, got $1. Expected $2." % [got, expected])
@@ -14,16 +15,46 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
   of "print":
     var first = dataStack.pop()
     echo(toString(first))
+    
   of "call":
     var first = dataStack.pop()
     if first.kind == ntQuot:
       interpretQuotation(first, dataStack, vars, gvars)
     else:
       raise invalidTypeErr($first.kind, "quot")
+      
   of "import":
     var first = dataStack.pop()
     if first.kind == ntString:
       loadModules(@[first.value], vars, gvars)
+    elif first.kind == ntList:
+      var modList: seq[string] = @[]
+      for i in items(first.lValue):
+        if i.kind == ntString:
+          modList.add(i.value)
+        else:
+          raise invalidTypeErr($i.kind, "string")
+    
+      loadModules(modList, vars, gvars)
+    else:
+      raise invalidTypeErr($first.kind, "string or list")
+      
+  of "include":
+    var first = dataStack.pop()
+    if first.kind == ntString:
+      includeModules(@[first.value], dataStack, vars, gvars)
+    elif first.kind == ntList:
+      var modList: seq[string] = @[]
+      for i in items(first.lValue):
+        if i.kind == ntString:
+          modList.add(i.value)
+        else:
+          raise invalidTypeErr($i.kind, "string")
+    
+      includeModules(modList, dataStack, vars, gvars)
+    else:
+      raise invalidTypeErr($first.kind, "string or list")
+    
   of "+", "-", "*", "/":
     var first = datastack.pop()
     var second = datastack.pop()
@@ -93,7 +124,8 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         interpretQuotation(theElse, dataStack, vars, gvars)
     else:
       raise invalidTypeErr($cond.kind & ", " & $theElse.kind & " and " & $then.kind,
-              "quot, quot, quot")
+              "quot, quot, quot")     
+  
   of "while":
     # Loop until cond becomes false
     # (cond) (do) while
@@ -158,10 +190,17 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       elif v.loc == 1:
         gvars.remVar(v.vvalue)
     
-  
   of "__stack__":
     dataStack.push(newList(dataStack.stack))
+    
+  of "swap":
+    # [1, 2] -> [2, 1]
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    dataStack.push(first)
+    dataStack.push(second)
   
+    # List manipulators
   of "nth":
     # [list] 5 nth
     # Gets the 5th item of list
@@ -177,21 +216,26 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       raise invalidTypeErr($index.kind & " and " & $list.kind, "int and list")
   
   of "len":
-    # [list] len
-    # Pushes the length of a list
+    # Pushes the length of a list or string
     var list = dataStack.pop()
     if list.kind == ntList:
       dataStack.push(newInt(list.lValue.len()))
+    elif list.kind == ntString:
+      dataStack.push(newInt(list.value.len()))
+    else:
+      raise invalidTypeErr($list.kind, "list or string")
+
+  of "append":
+    # [list] 5 append
+    # Appends a value to a list
+    var value = dataStack.pop()
+    var list = dataStack.pop()
+    if list.kind == ntList:
+      list.lValue.add(value)
     else:
       raise invalidTypeErr($list.kind, "list")
-  
-  of "swap":
-    # [1, 2] -> [2, 1]
-    var first = dataStack.pop()
-    var second = dataStack.pop()
-    dataStack.push(first)
-    dataStack.push(second)
-  
+
+    # Math
   of "sqrt":
     var first = dataStack.pop()
     if first.kind == ntFloat:
@@ -238,6 +282,8 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       dataStack.push(newVar(cmnd, varLoc))
     else:
       # Function call - Functions don't share scope, but they share the stack.
+      # TODO: Perhaps make a 'callFunc' function 
+      
       var localVars = newVariables() # This functions local variables
       var globalVars = newVariables() # This functions global variables
       # Copy the current gvars to this functions globalVars
@@ -342,6 +388,27 @@ proc loadModules(modules: seq[string], vars, gvars: var PType) =
             
             var moduleList = newList(@[newString(module), locals, globals]) # [name, {locals}, {globals}]
             modulesVar.lValue.add(moduleList)
+          else:
+            raise newException(ERuntimeError, "Error: Unable to load " &
+                    module & ", module cannot be found.")
+        else:
+          raise newException(ERuntimeError, "Error: Unable to load " &
+                  module & ", incorrect path, got type " & $path.kind)
+
+  else:
+    raise newException(ERuntimeError, "Error: Unable to load module, path and/or modules variable is not declared.")
+    
+proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType) =
+  var paths = gvars.getVar("__path__")
+  var modulesVar = gvars.getVar("__modules__")
+  if paths != nil and modulesVar != nil:
+    for module in items(modules):
+      for path in items(paths.lValue):
+        if path.kind == ntString:
+          var file = readFile(path.value / module & ".nael")
+          if file != nil:
+            var ast = parse(file)
+            interpret(ast, dataStack, vars, gvars)
           else:
             raise newException(ERuntimeError, "Error: Unable to load " &
                     module & ", module cannot be found.")

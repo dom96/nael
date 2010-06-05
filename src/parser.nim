@@ -42,9 +42,14 @@ proc getChar(tokens: seq[string], i: int): int =
     inc(result, tokens[t].len())
 
 proc tokenIsNumber(token: string): bool =
+  if token == "-":
+    return False
+
   for i in items(token):
     if i in {'0'..'9'}:
       result = True
+    elif i == '-':
+      result = False
     else:
       return False
 
@@ -56,6 +61,8 @@ proc tokenIsFloat(token: string): bool =
       nr = True
     elif i == '.':
       dot = True
+    elif i == '-':
+      nil
     else:
       return False
   
@@ -220,7 +227,7 @@ proc `$`(ast: seq[PNaelNode]): string =
 
 
 when isMainModule:
-  echo parse("i let\"test\" print i 1 =")
+  echo parse("-5 56 - -56.7")
 
   discard """
 
