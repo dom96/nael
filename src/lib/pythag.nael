@@ -1,3 +1,4 @@
-#"math" import
+__path__ get print
+"math" import
 cb [c b] (((c get 2.0 pow) call (b get 2.0 pow) call -) call sqrt);
 ab [a b] (((a get 2.0 pow) call (b get 2.0 pow) call +) call sqrt);

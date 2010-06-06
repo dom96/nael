@@ -416,14 +416,19 @@ proc loadModules(modules: seq[string], vars, gvars: var PType) =
             globals.addStandard()
             var moduleStack = newStack(200)
             
+            # Add the folder where this module resides, to this modules __path__
+            if splitFile(module).dir != "":
+              var modulePath = globals.getVar("__path__")
+              modulePath.lValue.add(newString(path.value / splitFile(module).dir))
+              globals.setVar("__path__", modulePath)
+              
             var ast = parse(file)
             interpret(ast, moduleStack, locals, globals)
             
-            var moduleList = newList(@[newString(module), locals, globals]) # [name, {locals}, {globals}]
+            var moduleList = newList(@[newString(extractFilename(module)), locals, globals]) # [name, {locals}, {globals}]
             modulesVar.lValue.add(moduleList)
-          else:
-            raise newException(ERuntimeError, errorLine() & 
-                "Error: Unable to load " & module & ", module cannot be found.")
+            loaded = True
+
         else:
           raise newException(ERuntimeError, errorLine() &
               "Error: Unable to load " & module &
@@ -432,6 +437,11 @@ proc loadModules(modules: seq[string], vars, gvars: var PType) =
   else:
     raise newException(ERuntimeError, errorLine() & 
         "Error: Unable to load module, path and/or modules variable is not declared.")
+        
+        
+  if not loaded:
+    raise newException(ERuntimeError, errorLine() & 
+        "Error: Unable to load module(module cannot be found).")
     
 proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType) =
   var paths = gvars.getVar("__path__")
@@ -444,8 +454,15 @@ proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: va
           var file = readFile(path.value / module & ".nael")
           if file != nil:
             var ast = parse(file)
+            
+            # Add the folder where this module resides
+            if splitFile(module).dir != "":
+              paths.lValue.add(newString(path.value / splitFile(module).dir))
+              gvars.setVar("__path__", paths)
+            
             interpret(ast, dataStack, vars, gvars)
             loaded = True
+            break
         else:
           raise newException(ERuntimeError, errorLine() & 
               "Error: Unable to load " & module &
