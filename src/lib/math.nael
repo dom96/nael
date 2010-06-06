@@ -1,3 +1,8 @@
+# nael math module
+# Copyright 2010 Dominik Picheta
+
 pi [] (3.14159265);
 e [] (2.71828183);
 circum [r] ((r get 2.0 *) call pi *);
+fib [n] (first let, first 0 =, second let, second 1 =, t let, t 0 =, (n get 1 >) (t first get second get + =, first second get =, second t get =, n n get 1 - =) while second get);
+isEven? [n] (n get 2 % 0 ==);

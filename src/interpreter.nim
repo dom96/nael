@@ -49,6 +49,9 @@ type
   TStack* = tuple[stack: seq[PType], limit: int]
   
   ERuntimeError* = object of EBase
+  
+# Characters that are invalid in variable names
+var invalidVars = {'(', ')', '[', ']', '{', '}', '\"', '\''}
 
 var currentLine = 0 # The line number of the code being executed
 var currentChar = 0 # The char number of the code being executed
@@ -251,8 +254,10 @@ proc getVarIndex*(vars: var PType, name: string): int =
   
 proc declVar*(vars: var PType, name: string) =
   # Declares a variable
-
-  # TODO: Check if the name contains illegal characters.
+  for i in items(name):
+    if i in invalidVars:
+      raise newException(ERuntimeError, errorLine() & "Error: Variable name contains illegal characters.")
+  
   if vars.kind != ntDict:
     raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
 

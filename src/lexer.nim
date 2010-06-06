@@ -65,7 +65,19 @@ proc analyse*(code: string): seq[TTokens] =
           else:
             dec(opMet)
             r.add($code[i])
-            
+        
+        of '\"':
+          # Add the " first
+          r.add($code[i])
+          inc(i) # Then Skip the starting "
+          while True:
+            if code[i] == '\"':
+              r.add($code[i])
+              break
+            else:
+              r.add($code[i])
+            inc(i)
+        
         else:
           r = r & code[i]
         inc(i)
@@ -89,7 +101,7 @@ proc analyse*(code: string): seq[TTokens] =
           if r != "":
             result.add((r, currentLine, currentChar))
           return
-        of '"':
+        of '\"':
           result.add((r, currentLine, currentChar))
           r = ""
           
@@ -125,8 +137,8 @@ proc analyse*(code: string): seq[TTokens] =
     inc(i)
       
 when isMainModule:
-  for i, cL, cC in items(analyse("x let,\n x 5 =\n #x print\ntest")):
+  for i, cL, cC in items(analyse("(\"(\")")):
     if i != "":
-      echo(i, "     ", cL)
+      echo(i)
     else:
       echo("<>EMPTY<>")

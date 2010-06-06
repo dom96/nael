@@ -55,7 +55,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     else:
       raise invalidTypeErr($first.kind, "string or list", "call")
     
-  of "+", "-", "*", "/":
+  of "+", "-", "*", "/", "%":
     var first = datastack.pop()
     var second = datastack.pop()
   
@@ -100,6 +100,13 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       else:
         raise invalidTypeErr($first.kind & " and " &
           $second.kind, "int, int or float, float", "/")
+  
+    elif cmnd == "%":
+      if first.kind == ntInt and second.kind == ntInt:
+        dataStack.push(newInt(second.iValue %% first.iValue))
+      else:
+        raise invalidTypeErr($first.kind & " and " &
+          $second.kind, "int, int", "%")
   
   of "!":
     # Negate a boolean
@@ -153,6 +160,20 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var second = dataStack.pop()
     
     dataStack.push(newBool(isEqual(first, second)))
+  
+  of ">":
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    
+    if first.kind == ntInt and second.kind == ntInt:
+      dataStack.push(newBool(second.iValue > first.iValue))
+  
+  of "<":
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    
+    if first.kind == ntInt and second.kind == ntInt:
+      dataStack.push(newBool(second.iValue < first.iValue))
   
   of "=":
     var first = dataStack.pop()
@@ -378,6 +399,7 @@ proc getModule(name: string, gvars: var PType): seq[PType] =
 proc loadModules(modules: seq[string], vars, gvars: var PType) =
   var paths = gvars.getVar("__path__")
   var modulesVar = gvars.getVar("__modules__")
+  var loaded = False
   if paths != nil and modulesVar != nil:
     for module in items(modules):
       # Check if the module exists
@@ -414,6 +436,7 @@ proc loadModules(modules: seq[string], vars, gvars: var PType) =
 proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType) =
   var paths = gvars.getVar("__path__")
   var modulesVar = gvars.getVar("__modules__")
+  var loaded = False
   if paths != nil and modulesVar != nil:
     for module in items(modules):
       for path in items(paths.lValue):
@@ -422,9 +445,7 @@ proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: va
           if file != nil:
             var ast = parse(file)
             interpret(ast, dataStack, vars, gvars)
-          else:
-            raise newException(ERuntimeError, errorLine() &
-                "Error: Unable to load " & module & ", module cannot be found.")
+            loaded = True
         else:
           raise newException(ERuntimeError, errorLine() & 
               "Error: Unable to load " & module &
@@ -433,5 +454,9 @@ proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: va
   else:
     raise newException(ERuntimeError, errorLine() & 
         "Error: Unable to load module, path and/or modules variable is not declared.")
+  
+  if not loaded:
+    raise newException(ERuntimeError, errorLine() &
+        "Error: Unable to load module(module cannot be found).")
 
 
