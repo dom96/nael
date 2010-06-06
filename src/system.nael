@@ -3,3 +3,21 @@ times [do, i] (count let, count 1 =, (count get, i get, == !) (do get call, coun
 dup [] (__stack__ len 1 -, __stack__ swap nth);
 clear [] ((del) __stack__ len 1 - times);
 dip [value, quo] (quo get call value get);
+
+inc [i] (i i get 1 + =, i get);
+
+each [list, quo] 
+  ( 
+    i let, i 0 = # Set i  to 0
+    ( 
+      # Check if the length of list is bigger than i
+      # If not end the loop
+      i get 
+      list get len 1 - <
+    )
+    (
+      list get, i get nth # Get the i-th item of list
+      quo get call # Call the quotation in the quo variable
+      i i get inc = # Increase i by 1
+    ) while
+  );
