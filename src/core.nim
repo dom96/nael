@@ -5,7 +5,6 @@
 
 proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
-proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType)
 
 proc invalidTypeErr(got, expected, function: string): ref ERuntimeError =
   return newException(ERuntimeError, errorLine() & "Error: Invalid types, $1 expects $2, got $3" % [function, expected, got])

@@ -70,6 +70,28 @@ Executes a quotation until the *cond* quotation pushes false on the stack
 
 `Infinite loop` * forever
 
+### each ###
+Iterates over a list
+
+`>> [1, 2, 3, 4] (print) each`
+
+`1`
+
+`2`
+
+`3`
+
+`4`
+
+## Modules ##
+You can import modules using the `import` keyword.
+
+`"math" import`
+
+You can then access the modules functions with, `module.function`
+
+You can also use `include` instead of `import` which will import all the functions, which means you will be able to just do `function`
+
 ## Variables ##
 Before you can set a variables value you need to declare it.
 
