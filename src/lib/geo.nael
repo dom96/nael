@@ -1,3 +1,0 @@
-#"math" import
-
-midpoint [x1 y1 x2 y2] (ar let, ar [] = , ar get x1 get x2 get + 2.0 / append, ar get y1 get y2 get + 2.0 / append, del;

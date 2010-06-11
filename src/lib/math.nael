@@ -7,3 +7,4 @@ circum [r] ((r get 2.0 *) call pi *);
 fib [n] (first let, first 0 =, second let, second 1 =, t let, t 0 =, (n get 1 >) (t first get second get + =, first second get =, second t get =, n n get 1 - =) while second get);
 isEven? [n] (n get 2 % 0 ==);
 collatz [c] ((c get isEven?) (c get 2 /) ((c get 3 *) call 1 +) if);
+midpoint [x1 y1 x2 y2] (ar let, ar [] = , ar get x1 get x2 get + 2.0 / append, ar get y1 get y2 get + 2.0 / append, del;
