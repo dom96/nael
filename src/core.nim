@@ -280,6 +280,28 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     else:
       raise invalidTypeErr($first.kind & " and " & $second.kind, "float and float", "pow")
   
+    # Type conversion
+  of "int>float":
+    var first = dataStack.pop()
+    if first.kind == ntInt:
+      dataStack.push(newFloat(float(first.iValue)))
+    else:
+      raise invalidTypeErr($first.kind, "int", "int>float")
+  
+    # Exception handling
+  of "try":
+    # (try quot) (excpt quot) try
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    if first.kind == ntQuot and second.kind == ntQuot:
+      try:
+        interpretQuotation(second, dataStack, vars, gvars)
+      except:
+        dataStack.push(newString(getCurrentExceptionMsg()))
+        interpretQuotation(first, dataStack, vars, gvars)
+    else:
+      raise invalidTypeErr($first.kind & " and " & $second.kind, "quot and quot", "try")
+  
   else:
     # Variables and Functions
     var tVar: PType
