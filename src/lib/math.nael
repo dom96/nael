@@ -3,11 +3,12 @@
 
 pi [] (3.14159265);
 e [] (2.71828183);
-circum [r] (r get 2.0 * pi *);
+circum [r] (r get >float 2 * pi *);
 fib [n] (first let, first 0 =, second let, second 1 =, t let, t 0 =, (n get 1 >) (t first get second get + =, first second get =, second t get =, n n get 1 - =) while second get);
 isEven? [n] (n get 2 % 0 ==);
 collatz [c] ((c get isEven?) (c get 2 /) ((c get 3 *) call 1 +) if);
-midpoint [x1 y1 x2 y2] (ar let, ar [] = , ar get x1 get x2 get + 2.0 / append, ar get y1 get y2 get + 2.0 / append, del);
-distance [x1 y1 x2 y2] (x2 get x1 get - 2.0 pow y2 get y1 get - 2.0 pow sqrt);
+midpoint [x1 y1 x2 y2] (ar let, ar [] = , ar get x1 get >float x2 get >float + 2.0 / append, ar get y1 get >float y2 get >float + 2.0 / append, del);
+distance [x1 y1 x2 y2] (((x2 get >float x1 get >float -) 2.0 pow) ((y2 get y1 get -) 2.0 pow) sqrt);
 heaviside [n] ((n get 0 >) (1) ((n get 0 ==) (0.5) (0) if) if);
-absolute [n] (n get n get * sqrt);
+absolute [n] (n get >float n get >float * sqrt);
+>float [n] (("int" n get type ==) (n get int>float) (("float" n get type ==) (n get) ("Incompatible type") if) if);
