@@ -5,7 +5,6 @@
 
 proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
-proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType)
 
 proc invalidTypeErr(got, expected, function: string): ref ERuntimeError =
   return newException(ERuntimeError, errorLine() & "Error: Invalid types, $1 expects $2, got $3" % [function, expected, got])
@@ -213,9 +212,11 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var v = dataStack.pop()
     if v.kind == ntVar:
       if v.loc == 0:
-        vars.remVar(v.vvalue)
+        if vars.getVar(v.vvalue) != nil:
+          vars.remVar(v.vvalue)
       elif v.loc == 1:
-        gvars.remVar(v.vvalue)
+        if gvars.getVar(v.vvalue) != nil:
+          gvars.remVar(v.vvalue)
     
   of "__stack__":
     dataStack.push(newList(dataStack.stack))
@@ -331,7 +332,9 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         if arg.kind == ntCmnd:
           #try:
           var first = dataStack.pop()
-          globalVars.declVar(arg.value)
+          # If it's already declared just overwrite it.
+          if globalVars.getVar(arg.value) == nil:
+            globalVars.declVar(arg.value)
           globalVars.setVar(arg.value, first)
               
           #except EOverflow:
@@ -416,14 +419,19 @@ proc loadModules(modules: seq[string], vars, gvars: var PType) =
             globals.addStandard()
             var moduleStack = newStack(200)
             
+            # Add the folder where this module resides, to this modules __path__
+            if splitFile(module).dir != "":
+              var modulePath = globals.getVar("__path__")
+              modulePath.lValue.add(newString(path.value / splitFile(module).dir))
+              globals.setVar("__path__", modulePath)
+              
             var ast = parse(file)
             interpret(ast, moduleStack, locals, globals)
             
-            var moduleList = newList(@[newString(module), locals, globals]) # [name, {locals}, {globals}]
+            var moduleList = newList(@[newString(extractFilename(module)), locals, globals]) # [name, {locals}, {globals}]
             modulesVar.lValue.add(moduleList)
-          else:
-            raise newException(ERuntimeError, errorLine() & 
-                "Error: Unable to load " & module & ", module cannot be found.")
+            loaded = True
+
         else:
           raise newException(ERuntimeError, errorLine() &
               "Error: Unable to load " & module &
@@ -432,6 +440,11 @@ proc loadModules(modules: seq[string], vars, gvars: var PType) =
   else:
     raise newException(ERuntimeError, errorLine() & 
         "Error: Unable to load module, path and/or modules variable is not declared.")
+        
+        
+  if not loaded:
+    raise newException(ERuntimeError, errorLine() & 
+        "Error: Unable to load module(module cannot be found).")
     
 proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType) =
   var paths = gvars.getVar("__path__")
@@ -444,8 +457,15 @@ proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: va
           var file = readFile(path.value / module & ".nael")
           if file != nil:
             var ast = parse(file)
+            
+            # Add the folder where this module resides
+            if splitFile(module).dir != "":
+              paths.lValue.add(newString(path.value / splitFile(module).dir))
+              gvars.setVar("__path__", paths)
+            
             interpret(ast, dataStack, vars, gvars)
             loaded = True
+            break
         else:
           raise newException(ERuntimeError, errorLine() & 
               "Error: Unable to load " & module &

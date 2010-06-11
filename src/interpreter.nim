@@ -80,7 +80,7 @@ proc toString*(item: PType, stack = False): string =
   of ntList:
     result.add("[")
     for i in 0 .. len(item.lValue)-1:
-      result.add(toString(item.lValue[i]))
+      result.add(toString(item.lValue[i], stack))
       if i < len(item.lValue)-1:
         result.add(", ")
     result.add("]")
@@ -88,7 +88,7 @@ proc toString*(item: PType, stack = False): string =
   of ntQuot:
     result.add("(")
     for i in 0 .. len(item.lValue)-1:
-      result.add(toString(item.lValue[i]))
+      result.add(toString(item.lValue[i], stack))
       if i < len(item.lValue)-1:
         result.add(", ")
     result.add(")")
@@ -218,11 +218,12 @@ proc newVariables*(): PType =
   new(result)
   result.kind = ntDict
   result.dValue = @[]
-  
+
+proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType)
 proc addStandard*(vars: var PType) =
   ## Adds standard variables(__path__, __modules__) to vars. 
   var appDir = newString(os.getApplicationDir())
-  var pathVar = newList(@[appDir])
+  var pathVar = newList(@[appDir, newString(appDir.value / "lib")])
   vars.dValue.add(("__path__", pathVar))
   
   var modulesVar: PType # [["name", {locals}, {globals}], ...]
@@ -231,6 +232,10 @@ proc addStandard*(vars: var PType) =
   
   vars.dValue.add(("false", newBool(False)))
   vars.dValue.add(("true", newBool(True)))
+
+proc loadStdlib*(dataStack: var TStack, vars, gvars: var PType) =
+  # Load the system module
+  includeModules(@["system"], dataStack, vars, gvars)
   
 proc getVar*(vars: var PType, name: string): PType =
   if vars.kind != ntDict:
@@ -365,6 +370,7 @@ proc exec*(code: string, dataStack: var TStack, vars, gvars: var PType) =
 var dataStack = newStack(200)
 var vars = newVariables() # 'main' variables(They act as both local and global)
 vars.addStandard()
+loadStdlib(dataStack, vars, vars)
 
 when isMainModule:
   var t = getStartmilsecs()

@@ -83,6 +83,7 @@ proc parse*(code: string): seq[PNaelNode] =
     case tokens[i][0]
     of "(":
       # Everything in between ( and ) is one token.
+      # If an empty quot is present, (), then the token between is an empty string ""
       if tokens.len()-i > 2 and tokens[i + 2][0] == ")":
         var quotNode: PNaelNode
         new(quotNode)
@@ -102,6 +103,7 @@ proc parse*(code: string): seq[PNaelNode] =
     
     of "[":
       # Everything in between [ and ] is one token.
+      # If an empty list is present, [], then the token between is an empty string ""
       if tokens.len()-i > 2 and tokens[i + 2][0] == "]":
         var listNode: PNaelNode
         new(listNode)
@@ -118,6 +120,16 @@ proc parse*(code: string): seq[PNaelNode] =
         raise newException(ESystem, 
             "[Line: $1 Char: $2] SyntaxError: List not ended" %
                 [$tokens[i][1], $tokens[i][2]])
+    
+    of "]", ")":
+      if tokens[i][0] == "]":
+        raise newException(ESystem, 
+                    "[Line: $1 Char: $2] SyntaxError: List not started" %
+                        [$tokens[i][1], $tokens[i][2]])
+      elif tokens[i][0] == ")":
+        raise newException(ESystem, 
+                    "[Line: $1 Char: $2] SyntaxError: Quotation not started" %
+                        [$tokens[i][1], $tokens[i][2]])
     
     of "\"":
       # Everything in between " and " is one token.
@@ -242,7 +254,7 @@ proc `$`(ast: seq[PNaelNode]): string =
     result.add($n & "\n")
 
 when isMainModule:
-  echo parse("-5\n \n 56 - (-56.7")
+  echo parse("stuff [] (s(ss)s);")
 
   discard """
 

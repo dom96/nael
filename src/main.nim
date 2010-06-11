@@ -9,6 +9,7 @@ when isMainModule:
     var dataStack = newStack(200)
     var vars = newVariables() # 'main' variables(They act as both local and global)
     vars.addStandard()
+    loadStdlib(dataStack, vars, vars) # Load system.
 
     while True:
       stdout.write(">> ")
