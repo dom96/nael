@@ -212,10 +212,10 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var v = dataStack.pop()
     if v.kind == ntVar:
       if v.loc == 0:
-        if vars.getVar(v.vvalue) == nil:
+        if vars.getVar(v.vvalue) != nil:
           vars.remVar(v.vvalue)
       elif v.loc == 1:
-        if gvars.getVar(v.vvalue) == nil:
+        if gvars.getVar(v.vvalue) != nil:
           gvars.remVar(v.vvalue)
     
   of "__stack__":

@@ -80,7 +80,7 @@ proc toString*(item: PType, stack = False): string =
   of ntList:
     result.add("[")
     for i in 0 .. len(item.lValue)-1:
-      result.add(toString(item.lValue[i]))
+      result.add(toString(item.lValue[i], stack))
       if i < len(item.lValue)-1:
         result.add(", ")
     result.add("]")
@@ -88,7 +88,7 @@ proc toString*(item: PType, stack = False): string =
   of ntQuot:
     result.add("(")
     for i in 0 .. len(item.lValue)-1:
-      result.add(toString(item.lValue[i]))
+      result.add(toString(item.lValue[i], stack))
       if i < len(item.lValue)-1:
         result.add(", ")
     result.add(")")

@@ -41,7 +41,9 @@ proc analyse*(code: string): seq[TTokens] =
       # Add [ or ( as a seperate token.
       result.add(($code[i], currentLine, currentChar))
       
+      inc(currentChar) # When increasing i, currentChar needs to be increased aswell
       inc(i) # Skip the [ or (
+      
       var opMet = 1 # The number of times [ or ( was matched.
                     # This gets decreased when ] or ) is met.
       while True:
@@ -69,6 +71,7 @@ proc analyse*(code: string): seq[TTokens] =
         of '\"':
           # Add the " first
           r.add($code[i])
+          inc(currentChar) # When increasing i, currentChar needs to be increased aswell
           inc(i) # Then Skip the starting "
           while True:
             if code[i] == '\"':
@@ -76,12 +79,22 @@ proc analyse*(code: string): seq[TTokens] =
               break
             else:
               r.add($code[i])
+            inc(currentChar) # When increasing i, currentChar needs to be increased aswell
             inc(i)
         
         else:
           r = r & code[i]
+        inc(currentChar) # When increasing i, currentChar needs to be increased aswell
         inc(i)
 
+    
+    of ')', ']':
+      # Add these as seperate tokens
+      if r != "":
+        result.add((r, currentLine, currentChar))
+        r = ""
+    
+      result.add(($code[i], currentLine, currentChar))
     
     of '\"':
       # Add any token which is waiting to get added
@@ -93,6 +106,7 @@ proc analyse*(code: string): seq[TTokens] =
       result.add(($code[i], currentLine, currentChar))
       
       # skip the "
+      inc(currentChar) # When increasing i, currentChar needs to be increased aswell
       inc(i)
       
       while True:
@@ -110,6 +124,7 @@ proc analyse*(code: string): seq[TTokens] =
         else:
           r.add($code[i])
         
+        inc(currentChar) # When increasing i, currentChar needs to be increased aswell
         inc(i)
     
     of '#':
@@ -128,6 +143,7 @@ proc analyse*(code: string): seq[TTokens] =
           break
         else:
           nil
+        inc(currentChar) # When increasing i, currentChar needs to be increased aswell
         inc(i)
     
     else:
@@ -137,7 +153,7 @@ proc analyse*(code: string): seq[TTokens] =
     inc(i)
       
 when isMainModule:
-  for i, cL, cC in items(analyse("(\"(\")")):
+  for i, cL, cC in items(analyse("stuff [] (sss)s))));")):
     if i != "":
       echo(i)
     else:
