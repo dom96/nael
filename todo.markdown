@@ -16,3 +16,5 @@ nael todo list
   * `[0, 0] Error: Wrong types... @ +`  -  **Partly done**
 * Make global variables work, the `def` keyword.
 * Make raising exceptions work, and change any functions that need exception raising, to use raise.
+* Add stack effects to functions, `func [args] -> [return] (...);`
+* Make var references better, so that a function can change the contents of a variable passed to it.
