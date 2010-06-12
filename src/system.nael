@@ -23,3 +23,6 @@ each [list, quo]
   );
   
 join [list, seperator] (i let, i 0 =, s let, s "" =, (i get, list get len 1 - <) (s get (i get 0 == !) (seperator get +) () if, list get, i get nth, + s swap =, i i get inc =) while, s get);
+
+<= [first, second] (first get second get == first get second get < or);
+>= [x,y] (y get x get <=);

@@ -5,7 +5,7 @@ nael todo list
 * tuples
 * dictionaries
 * Loading of C Libraries
-* Functions for converting types
+* Functions for converting types - **Partly Done**
   * `string>int`
   * `int>string`
   * `float>string`
@@ -15,3 +15,4 @@ nael todo list
 * Make every error, report it's origin(function).
   * `[0, 0] Error: Wrong types... @ +`  -  **Partly done**
 * Make global variables work, the `def` keyword.
+* Make raising exceptions work, and change any functions that need exception raising, to use raise.

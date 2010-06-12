@@ -174,6 +174,18 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     if first.kind == ntInt and second.kind == ntInt:
       dataStack.push(newBool(second.iValue < first.iValue))
   
+  of "and":
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    if first.kind == ntBool and second.kind == ntBool:
+      dataStack.push(newBool(second.bValue and first.bValue))
+
+  of "or":
+    var first = dataStack.pop()
+    var second = dataStack.pop()
+    if first.kind == ntBool and second.kind == ntBool:
+      dataStack.push(newBool(second.bValue or first.bValue))
+
   of "=":
     var first = dataStack.pop()
     var second = dataStack.pop()
@@ -280,13 +292,38 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     else:
       raise invalidTypeErr($first.kind & " and " & $second.kind, "float and float", "pow")
   
+  of "round":
+    var first = dataStack.pop()
+    if first.kind == ntFloat:
+      dataStack.push(newInt(round(first.fValue)))
+    else:
+      raise invalidTypeErr($first.kind, "float", "round")
+  
     # Type conversion
+  of "type":
+    var first = dataStack.pop()
+    dataStack.push(newString($first.kind))
+    
   of "int>float":
     var first = dataStack.pop()
     if first.kind == ntInt:
       dataStack.push(newFloat(float(first.iValue)))
     else:
       raise invalidTypeErr($first.kind, "int", "int>float")
+      
+  of "float>int":
+    var first = dataStack.pop()
+    if first.kind == ntFloat:
+      dataStack.push(newInt(int(first.fValue)))
+    else:
+      raise invalidTypeErr($first.kind, "float", "float>int")
+      
+  of "string>int":
+    var first = dataStack.pop()
+    if first.kind == ntString:
+      dataStack.push(newInt(first.value.parseInt()))
+    else:
+      raise invalidTypeErr($first.kind, "string", "string>int")
   
     # Exception handling
   of "try":

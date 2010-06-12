@@ -109,6 +109,21 @@ proc toString*(item: PType, stack = False): string =
     else:
       raise newException(ERuntimeError, errorLine() & "Error: Unexpected AstNode in `$`, " & $item.node.kind)
 
+proc `$`*(kind: TTypes): string =
+  case kind
+  of ntInt: return "int"
+  of ntFloat: return "float"
+  of ntString: return "string"
+  of ntBool: return "bool"
+  of ntList: return "list"
+  of ntQuot: return "quot"
+  of ntDict: return "dict"
+  of ntNil: return "nil"
+  of ntCmnd: return "__cmnd__"
+  of ntVar: return "var"
+  of ntFunc: return "__func__"
+  of ntASTNode: return "__ASTNode__"
+
 proc isEqual*(first, second: PType): bool =
   if first.kind == second.kind:
     case first.kind
