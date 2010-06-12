@@ -1,5 +1,5 @@
 # nael math module
-# Copyright 2010 Dominik Picheta, Alex Mitchell
+# Copyright 2010 Dominik Picheta, Alex Mitchell (and a weee tiny bit Vijay Vanness)
 
 pi [] (3.14159265);
 e [] (2.71828183);
