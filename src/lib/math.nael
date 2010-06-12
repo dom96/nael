@@ -13,4 +13,4 @@ heaviside [n] ((n get 0 >) (1) ((n get 0 ==) (0.5) (0) if) if);
 absolute [n] (n get >float n get >float * sqrt);
 >float [n] (("int" n get type ==) (n get int>float) (("float" n get type ==) (n get) ("Incompatible type") if) if);
 >int [n] (("float" n get type ==) (n get float>int) (("int" n get type ==) (n get) ("Incompatible type") if) if);
-#<= [x y] ((x get >float y get >float ==) (true) ((x get >float y get >float <) (true) (false) if) if); Early function for less or equal to.
+max [n] (n get 0.5 (n get 0.0 >=) (+) (-) if float>int);

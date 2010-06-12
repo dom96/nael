@@ -166,25 +166,37 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     
     if first.kind == ntInt and second.kind == ntInt:
       dataStack.push(newBool(second.iValue > first.iValue))
-  
+    elif first.kind == ntFloat and second.kind == ntFloat:
+      dataStack.push(newBool(second.fValue > first.fValue))
+    else:
+      raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int or float, float", ">")
+
   of "<":
     var first = dataStack.pop()
     var second = dataStack.pop()
     
     if first.kind == ntInt and second.kind == ntInt:
       dataStack.push(newBool(second.iValue < first.iValue))
+    elif first.kind == ntFloat and second.kind == ntFloat:
+      dataStack.push(newBool(second.fValue < first.fValue))
+    else:
+      raise invalidTypeErr($first.kind & " and " & $second.kind, "int, int or float, float", "<")
   
   of "and":
     var first = dataStack.pop()
     var second = dataStack.pop()
     if first.kind == ntBool and second.kind == ntBool:
       dataStack.push(newBool(second.bValue and first.bValue))
+    else:
+      raise invalidTypeErr($first.kind & " and " & $second.kind, "bool and bool", "and")
 
   of "or":
     var first = dataStack.pop()
     var second = dataStack.pop()
     if first.kind == ntBool and second.kind == ntBool:
       dataStack.push(newBool(second.bValue or first.bValue))
+    else:
+      raise invalidTypeErr($first.kind & " and " & $second.kind, "bool and bool", "or")
 
   of "=":
     var first = dataStack.pop()
