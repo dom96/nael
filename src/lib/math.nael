@@ -12,3 +12,4 @@ distance [x1 y1 x2 y2] (((x2 get >float x1 get >float -) 2.0 pow) ((y2 get y1 ge
 heaviside [n] ((n get 0 >) (1) ((n get 0 ==) (0.5) (0) if) if);
 absolute [n] (n get >float n get >float * sqrt);
 >float [n] (("int" n get type ==) (n get int>float) (("float" n get type ==) (n get) ("Incompatible type") if) if);
+>int [n] (("float" n get type ==) (n get float>int) (("int" n get type ==) (n get) ("Incompatible type") if) if);
