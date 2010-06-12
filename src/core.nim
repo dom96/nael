@@ -21,7 +21,6 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       interpretQuotation(first, dataStack, vars, gvars)
     else:
       raise invalidTypeErr($first.kind, "quot", "call")
-      
   of "import":
     var first = dataStack.pop()
     if first.kind == ntString:
@@ -303,7 +302,13 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       dataStack.push(newFloat(pow(second.fValue, first.fValue)))
     else:
       raise invalidTypeErr($first.kind & " and " & $second.kind, "float and float", "pow")
-  
+  of "rand":
+    var first = dataStack.pop()
+    if first.kind == ntInt:
+      randomize()
+      dataStack.push(newInt(random(int(first.iValue))))
+    else:
+      raise invalidTypeErr($first.kind, "int", "rand")
   of "round":
     var first = dataStack.pop()
     if first.kind == ntFloat:
