@@ -37,8 +37,10 @@ midpoint [x1 y1 x2 y2] (
 );
 
 distance [x1 y1 x2 y2] (
-  ((x2 get >float x1 get >float -) 2.0 pow)
-  ((y2 get y1 get -) 2.0 pow) sqrt
+  (
+  ((x2 get >float x1 get >float -) call >float 2.0 pow) call 
+  ((y2 get >int y1 get >int -) call >float 2.0 pow) call 
+  +) call >float sqrt
 );
 
 heaviside [n] (
