@@ -205,19 +205,13 @@ proc newCmnd*(value: string): PType =
   result.value = value
 
 proc toPType(item: PNaelNode): PType
-proc getVar*(vars: var PType, name: string): PType
-proc newFunc*(node: PNaelNode, gvars: var PType): PType =
+proc newFunc*(node: PNaelNode): PType =
   new(result)
   result.kind = ntFunc
   var args: seq[PType] = @[]
   for n in items(node.args.children):
     if n.kind == nnkCommand:
-      if gvars.getVar(n.value) == nil:
-        args.add(newCmnd(n.value))
-      else:
-        raise newException(ERuntimeError, errorLine() &
-            "Error: Function declaration incorrect, " & 
-                "$1 already exists as a global variable" % [n.value])
+      args.add(newCmnd(n.value))
     else:
       raise newException(ERuntimeError, errorLine() &
           "Error: Function declaration incorrect, got " & $n.kind & " for args")
@@ -385,7 +379,7 @@ proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PTy
     of nnkFunc:
       if gvars.getVarIndex(node.fName) == -1:
         gvars.declVar(node.fName)
-      gvars.setVar(node.fName, newFunc(node, gvars))
+      gvars.setVar(node.fName, newFunc(node))
 
 
 

@@ -1,2 +1,9 @@
 foo [n] (n let, n get);
 56 foo # This should error, 'n is already declared as a global variable'
+
+x let
+foo1 [x] (x get); # No Error - But x has to be nil
+
+foo2 [s] (s get);
+s let
+56 foo2 # No Error - But s has to stay nil

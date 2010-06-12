@@ -412,7 +412,7 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
       of nnkFunc:
         if gvars.getVarIndex(item.node.fname) == -1:
           gvars.declVar(item.node.fName)
-        gvars.setVar(item.node.fName, newFunc(item.node, gvars))
+        gvars.setVar(item.node.fName, newFunc(item.node))
       else:
         raise newException(ERuntimeError, errorLine() & 
             "Error: Unexpected AstNode in quotation, " & $item.node.kind)
