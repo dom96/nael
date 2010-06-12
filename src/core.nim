@@ -398,6 +398,11 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       # that have a quotation passed to them(with one of the var args..) works
       # Look at tests/funcargs.nael for more info
 
+      # FIXME: These should REALLY, not be added to global vars. I need to
+      # find a solution to the whole args/scope thing. Remember that
+      # quotations called in functions need to have the scope of the function.
+
+      var tempArgNames: seq[string] = @[]
       for i in countdown(tVar.args.len()-1, 0):
         var arg = tVar.args[i]
         if arg.kind == ntCmnd:
@@ -407,7 +412,9 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
           if globalVars.getVar(arg.value) == nil:
             globalVars.declVar(arg.value)
           globalVars.setVar(arg.value, first)
-              
+          
+          tempArgNames.add(arg.value)
+          
           #except EOverflow:
           #  # TODO: Check if this works, After araq fixes the exception bug
           #  raise newException(ERuntimeError, 
@@ -423,6 +430,18 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
 
       # TODO: Move the variables that were declared global in that function
       # to gvars
+
+      # TODO: What will happen if the args have the same name as a variable, and it gets set
+      for name, value in items(globalVars.dValue):
+        if name notin tempArgNames:
+          if module == nil:
+            if gvars.getVar(name) == nil:
+              gvars.declVar(name)
+            gvars.setVar(name, value)
+          else:
+            if gvars.getVar(name) == nil:
+              module[2].declVar(name)
+            module[2].setVar(name, value)
 
       discard """
       # Now we need to delete these args...
