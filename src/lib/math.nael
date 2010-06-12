@@ -5,8 +5,19 @@
 pi [] (3.14159265);
 e [] (2.71828183);
 
-#Tuples
+# Tuples
 point [ x y ] tuple;
+
+# Functions
+
+picks [area perimeter] (
+  #Allows you to calculate the area of a polygon in square units : see http://en.wikipedia.org/wiki/Pick's_theorem
+  (
+    (area get 
+      (perimeter get 2 /) 
+     call +) 
+   call 1 -
+);
 
 circum [r] (
   # Calculates the circumference of r
