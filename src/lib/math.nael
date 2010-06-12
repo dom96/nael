@@ -5,6 +5,9 @@
 pi [] (3.14159265);
 e [] (2.71828183);
 
+#Tuples
+point [ x y ] tuple;
+
 circum [r] (
   # Calculates the circumference of r
   r get >float 2 *, pi *
