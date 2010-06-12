@@ -59,3 +59,12 @@ absolute [n] (
 max [n] (
   n get 0.5 (n get 0.0 >=) (+) (-) if float>int
 );
+
+slope_intercept_recurs [a b x1] ( #The same as the one below, except, this except x1 to be a [] list of numbers.
+  (x1 get (b get *) each) 
+  call a get +
+);
+slope_intercept [a b x] ( 
+  (x get b get *) 
+  call a get +
+);
