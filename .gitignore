@@ -10,3 +10,4 @@ main
 IRC
 IRC.nim
 *.exe
+Build.Win32.bat
