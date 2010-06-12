@@ -205,15 +205,22 @@ proc newCmnd*(value: string): PType =
   result.value = value
 
 proc toPType(item: PNaelNode): PType
-proc newFunc*(node: PNaelNode): PType =
+proc getVar*(vars: var PType, name: string): PType
+proc newFunc*(node: PNaelNode, gvars: var PType): PType =
   new(result)
   result.kind = ntFunc
   var args: seq[PType] = @[]
   for n in items(node.args.children):
     if n.kind == nnkCommand:
-      args.add(newCmnd(n.value))
+      if gvars.getVar(n.value) == nil:
+        args.add(newCmnd(n.value))
+      else:
+        raise newException(ERuntimeError, errorLine() &
+            "Error: Function declaration incorrect, " & 
+                "$1 already exists as a global variable" % [n.value])
     else:
-      raise newException(ERuntimeError, errorLine() & "Error: Function declaration incorrect, got " & $n.kind & " for args")
+      raise newException(ERuntimeError, errorLine() &
+          "Error: Function declaration incorrect, got " & $n.kind & " for args")
 
   result.args = args
   result.quot = toPType(node.quot)
@@ -339,7 +346,8 @@ proc toPType(item: PNaelNode): PType =
       of nnkCommand, nnkVarDeclar, nnkFunc:
         # Commands are not allowed in Lists.
         if item.kind == nnkListLit:
-          raise newException(ERuntimeError, errorLine() & "Error: $1 not allowed in a list literal" % [$node.kind])
+          raise newException(ERuntimeError, errorLine() &
+              "Error: $1 not allowed in a list literal" % [$node.kind])
         elif item.kind == nnkQuotLit:
           if node.kind == nnkCommand:
             result.lValue.add(newCmnd(node.value))
@@ -362,17 +370,22 @@ proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PTy
     currentLine = node.lineNum
     currentChar = node.charNum
   
+    # REMEMBER ANY CHANGES YOU MAKE HERE, HAVE TO BE MADE IN interpretQuotation
     case node.kind
     of nnkCommand:
       command(node.value, dataStack, vars, gvars)
     of nnkIntLit, nnkStringLit, nnkFloatLit, nnkListLit, nnkQuotLit:
       dataStack.push(toPType(node))
     of nnkVarDeclar:
-      vars.declVar(node.value)
+      if gvars.getVar(node.value) != nil:
+        raise newException(ERuntimeError, errorLine() &
+            "Error: $1 is already declared as a global variable" % [node.value])
+      else:
+        vars.declVar(node.value)
     of nnkFunc:
       if gvars.getVarIndex(node.fName) == -1:
         gvars.declVar(node.fName)
-      gvars.setVar(node.fName, newFunc(node))
+      gvars.setVar(node.fName, newFunc(node, gvars))
 
 
 

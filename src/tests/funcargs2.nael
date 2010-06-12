@@ -1,0 +1,2 @@
+foo [n] (n let, n get);
+56 foo # This should error, 'n is already declared as a global variable'

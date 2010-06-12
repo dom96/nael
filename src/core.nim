@@ -5,6 +5,8 @@
 
 proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
+proc callFunc*(dataStack: var TStack, vars, gvars: var PType, cmnd: string,
+    tVar: PType, module: var seq[PType])
 
 proc invalidTypeErr(got, expected, function: string): ref ERuntimeError =
   return newException(ERuntimeError, errorLine() & "Error: Invalid types, $1 expects $2, got $3" % [function, expected, got])
@@ -386,76 +388,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     if tVar.kind != ntFunc:
       dataStack.push(newVar(cmnd, varLoc))
     else:
-      # Function call - Functions don't share scope, but they share the stack.
-      # TODO: Perhaps make a 'callFunc' function 
-      
-      var localVars = newVariables() # This functions local variables
-      var globalVars = newVariables() # This functions global variables
-      # Copy the current gvars to this functions globalVars
-      if module == nil:
-        globalVars.dValue = gvars.dValue
-      else:
-        globalVars.dValue = module[2].dValue
-      
-      # Add the arguments in reverse, so that the 'nael rule' applies
-      # 5 6 foo -> foo(5,6)
-      # I have to add the args to globals, so that functions called from this function
-      # that have a quotation passed to them(with one of the var args..) works
-      # Look at tests/funcargs.nael for more info
-
-      # FIXME: These should REALLY, not be added to global vars. I need to
-      # find a solution to the whole args/scope thing. Remember that
-      # quotations called in functions need to have the scope of the function.
-
-      var tempArgNames: seq[string] = @[]
-      for i in countdown(tVar.args.len()-1, 0):
-        var arg = tVar.args[i]
-        if arg.kind == ntCmnd:
-          #try:
-          var first = dataStack.pop()
-          # If it's already declared just overwrite it.
-          if globalVars.getVar(arg.value) == nil:
-            globalVars.declVar(arg.value)
-          globalVars.setVar(arg.value, first)
-          
-          tempArgNames.add(arg.value)
-          
-          #except EOverflow:
-          #  # TODO: Check if this works, After araq fixes the exception bug
-          #  raise newException(ERuntimeError, 
-          #          "Error: $1 expects $2 args, got $3" %
-          #                  [cmnd, $(tVar.args.len()-1), $(i)])
-
-        else:
-          raise newException(ERuntimeError, errorLine() & "Error: " & cmnd &
-                  " contains unexpected args, of kind " & $arg.kind)
-                  
-      
-      interpretQuotation(tVar.quot, dataStack, localVars, globalVars)
-
-      # TODO: Move the variables that were declared global in that function
-      # to gvars
-
-      # TODO: What will happen if the args have the same name as a variable, and it gets set
-      for name, value in items(globalVars.dValue):
-        if name notin tempArgNames:
-          if module == nil:
-            if gvars.getVar(name) == nil:
-              gvars.declVar(name)
-            gvars.setVar(name, value)
-          else:
-            if gvars.getVar(name) == nil:
-              module[2].declVar(name)
-            module[2].setVar(name, value)
-
-      discard """
-      # Now we need to delete these args...
-      for i in 0 .. tVar.args.len()-1:
-        echo(i, " ", tVar.args[i].value)
-        if modulegvars == nil:
-          gvars.remVar(tVar.args[i].value)
-        else:
-          modulegvars.remVar(tVar.args[i].value)"""
+      callFunc(dataStack, vars, gvars, cmnd, tVar, module)
 
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType) =
   if quot.kind != ntQuot:
@@ -471,14 +404,83 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
     of ntAstNode:
       case item.node.kind:
       of nnkVarDeclar:
-        vars.declVar(item.node.value)
+        if gvars.getVar(item.node.value) != nil:
+          raise newException(ERuntimeError, errorLine() &
+              "Error: $1 is already declared as a global variable" % [item.node.value])
+        else:
+          vars.declVar(item.node.value)
       of nnkFunc:
         if gvars.getVarIndex(item.node.fname) == -1:
           gvars.declVar(item.node.fName)
-        gvars.setVar(item.node.fName, newFunc(item.node))
+        gvars.setVar(item.node.fName, newFunc(item.node, gvars))
       else:
         raise newException(ERuntimeError, errorLine() & 
             "Error: Unexpected AstNode in quotation, " & $item.node.kind)
+
+proc callFunc*(dataStack: var TStack, vars, gvars: var PType, cmnd: string,
+    tVar: PType, module: var seq[PType]) =
+  # Function call - Functions don't share scope, but they share the stack.
+  
+  var localVars = newVariables() # This functions local variables
+  var globalVars = newVariables() # This functions global variables
+  # Copy the current gvars to this functions globalVars
+  if module == nil:
+    globalVars.dValue = gvars.dValue
+  else:
+    globalVars.dValue = module[2].dValue
+  
+  # Add the arguments in reverse, so that the 'nael rule' applies
+  # 5 6 foo -> foo(5,6)
+  # I have to add the args to globals, so that functions called from this function
+  # that have a quotation passed to them(with one of the var args..) works
+  # Look at tests/funcargs.nael for more info
+
+  # FIXME: These should REALLY, not be added to global vars. I need to
+  # find a solution to the whole args/scope thing. Remember that
+  # quotations called in functions need to have the scope of the function.
+
+  var tempArgNames: seq[string] = @[]
+  for i in countdown(tVar.args.len()-1, 0):
+    var arg = tVar.args[i]
+    if arg.kind == ntCmnd:
+      #try:
+      var first = dataStack.pop()
+      # If it's already declared just overwrite it.
+      if globalVars.getVar(arg.value) == nil:
+        globalVars.declVar(arg.value)
+      globalVars.setVar(arg.value, first)
+      
+      tempArgNames.add(arg.value)
+      
+      #except EOverflow:
+      #  # TODO: Check if this works, After araq fixes the exception bug
+      #  raise newException(ERuntimeError, 
+      #          "Error: $1 expects $2 args, got $3" %
+      #                  [cmnd, $(tVar.args.len()-1), $(i)])
+
+    else:
+      raise newException(ERuntimeError, errorLine() & "Error: " & cmnd &
+              " contains unexpected args, of kind " & $arg.kind)
+              
+  
+  interpretQuotation(tVar.quot, dataStack, localVars, globalVars)
+
+  # TODO: If a variable with the same name as a arg gets declared in the function
+  # An error should be raised.
+  # TODO: Check in the function declaration if any of the arguments are already declared as global variables
+  
+  # Move the variables that were declared global in that function
+  # to gvars(or the modules global vars)
+  for name, value in items(globalVars.dValue):
+    if name notin tempArgNames:
+      if module == nil:
+        if gvars.getVar(name) == nil:
+          gvars.declVar(name)
+        gvars.setVar(name, value)
+      else:
+        if gvars.getVar(name) == nil:
+          module[2].declVar(name)
+        module[2].setVar(name, value)
 
 proc getModule(name: string, gvars: var PType): seq[PType] =
   var modulesVar = gvars.getVar("__modules__")
