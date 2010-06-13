@@ -208,6 +208,10 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         gvars.setVar(second.vvalue, first)
       elif second.loc == 0:
         vars.setVar(second.vvalue, first)
+      elif second.loc == 2:
+        vars.setVarField(second.vvalue, first)
+      elif second.loc == 3:
+        gvars.setVarField(second.vvalue, first)
     else:
       raise invalidTypeErr($second.kind, "var", "=")
   
@@ -220,6 +224,10 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         tVar = vars.getVar(first.vvalue)
       elif first.loc == 1:
         tVar = gvars.getVar(first.vvalue)
+      elif first.loc == 2:
+        tVar = vars.getVarField(first.vvalue)
+      elif first.loc == 3:
+        tVar = gvars.getVarField(first.vvalue)
       else:
         raise newException(ERuntimeError, errorLine() &
             "Error: Variable's location is incorrect, got $1" % [$first.loc])
@@ -228,7 +236,10 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         raise newException(ERuntimeError, errorLine() &
             "Error: $1 is not declared." % [first.vvalue])
       
-      dataStack.push(tVar)
+      # unreference the value, so that getting a list from a variable and appending
+      # to it, doesn't make changes to the variable
+      
+      dataStack.push(copyVar(tVar))
     
     else:
       raise invalidTypeErr($first.kind, "var", "get")
@@ -358,6 +369,33 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     else:
       raise invalidTypeErr($first.kind & " and " & $second.kind, "quot and quot", "try")
   
+  of "new":
+    var first = dataStack.pop()
+    if first.kind == ntVar:
+      var tVar: PType
+      
+      if first.loc == 0:
+        tVar = vars.getVar(first.vvalue)
+      elif first.loc == 1:
+        tVar = gvars.getVar(first.vvalue)
+      elif first.loc == 2:
+        tVar = vars.getVarField(first.vvalue)
+      elif first.loc == 3:
+        tVar = gvars.getVarField(first.vvalue)
+      else:
+        raise newException(ERuntimeError, errorLine() &
+            "Error: Variable's location is incorrect, got $1" % [$first.loc])
+      
+      if tVar == nil:
+        raise newException(ERuntimeError, errorLine() &
+            "Error: $1 is not declared." % [first.vvalue])
+      
+      if tVar.kind == ntType:
+        var fields: TDict = @[]
+        for i in 0 .. len(tVar.fields)-1:
+          fields.add((tVar.fields[i], newNil()))
+        dataStack.push(newObject(tVar, fields))
+  
   else:
     # Variables and Functions
     var tVar: PType
@@ -372,15 +410,27 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         varLoc = 1
     else:
       # cmnd contains a dot
-      var before = cmnd.split('.')[0]
-      var after = cmnd.split('.')[1]
+      var s = cmnd.split('.')
       
-      module = getModule(before, gvars) # [name, {locals}, {globals}]
+      # Check if there is a module, with function by the name of whatever s[1] is
+      module = getModule(s[0], gvars) # [name, {locals}, {globals}]
       if module == nil:
         tVar = nil
       else:
-        tVar = module[2].getVar(after)
+        tVar = module[2].getVar(s[1])
         varLoc = 1
+    
+      # FIXME: Perhaps it shouldn't be a dot syntax
+      # If i were to use a different method it would simpler i think.
+      
+      # if the module doesn't exist, then try to see if there is a object, with 
+      # a field equal to after
+      if module == nil:
+        tVar = vars.getVarField(cmnd)
+        varLoc = 2 #i.e field, local
+        if tVar == nil:
+          tVar = gvars.getVarField(cmnd)
+          varLoc = 3 #i.e field global
     
     if tVar == nil:
       raise newException(ERuntimeError, errorLine() & "Error: $1 is not declared." % [cmnd])
@@ -397,7 +447,7 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
   
   for item in items(quot.lvalue):
     case item.kind
-    of ntInt, ntFloat, ntString, ntBool, ntList, ntQuot, ntDict, ntNil, ntFunc, ntVar:
+    of ntInt, ntFloat, ntString, ntBool, ntList, ntQuot, ntDict, ntNil, ntFunc, ntVar, ntType, ntObject:
       dataStack.push(item)
     of ntCmnd:
       command(item.value, dataStack, vars, gvars)
@@ -413,6 +463,11 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
         if gvars.getVarIndex(item.node.fname) == -1:
           gvars.declVar(item.node.fName)
         gvars.setVar(item.node.fName, newFunc(item.node))
+      of nnkTuple:
+        if gvars.getVarIndex(item.node.tName) == -1:
+          gvars.declVar(item.node.tName)
+        gvars.setVar(item.node.tName, newType(item.node))  
+      
       else:
         raise newException(ERuntimeError, errorLine() & 
             "Error: Unexpected AstNode in quotation, " & $item.node.kind)

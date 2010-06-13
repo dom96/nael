@@ -2,7 +2,7 @@ nael todo list
 ==============
 
 * `type` function - Pop's a value from the stack and pushes it's type.
-* tuples
+* tuples - **Done**
 * dictionaries
 * Loading of C Libraries
 * Functions for converting types - **Partly Done**
@@ -16,5 +16,7 @@ nael todo list
   * `[0, 0] Error: Wrong types... @ +`  -  **Partly done**
 * Make global variables work, the `def` keyword.
 * Make raising exceptions work, and change any functions that need exception raising, to use raise.
-* Add stack effects to functions, `func [args] -> [return] (...);`
+* Add stack effects to functions, `func [args] -> [return] (...);` **MAYBE**
 * Make var references better, so that a function can change the contents of a variable passed to it.
+* generic functions, functions which work only on specified types, like factor's `GENERIC:`
+  * `func type [args] (...) g;`

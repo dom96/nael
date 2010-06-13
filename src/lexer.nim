@@ -153,7 +153,7 @@ proc analyse*(code: string): seq[TTokens] =
     inc(i)
       
 when isMainModule:
-  for i, cL, cC in items(analyse("stuff [] (sss)s))));")):
+  for i, cL, cC in items(analyse("bar [filed1, field2] tuple")):
     if i != "":
       echo(i)
     else:

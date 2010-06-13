@@ -15,7 +15,8 @@ type
     nnkListLit, # [5]
     nnkQuotLit, # ("some code here" print)
     nnkVarDeclar, # x let
-    nnkFunc # func [args] (...);
+    nnkFunc, # func [args] (...);
+    nnkTuple # name [ fields ] tuple
     
   PNaelNode* = ref TNaelNode
     
@@ -31,6 +32,9 @@ type
       fName*: string
       args*: PNaelNode # List
       quot*: PNaelNode # Quotation
+    of nnkTuple:
+      tName*: string
+      fields*: PNaelNode # List
     of nnkIntLit:
       iValue*: int64
     of nnkFloatLit:
@@ -203,7 +207,20 @@ proc parse*(code: string): seq[PNaelNode] =
           
           result.add(funcNode)
       
-          # TODO: Tuples
+        elif tokens.len()-i > 4 and tokens[i + 4][0] == "tuple":
+          # each [ is one token
+          # name [ field1 field2 ] tuple
+          var tupleNode: PNaelNode
+          new(tupleNode)
+          tupleNode.lineNum = tokens[i][1]
+          tupleNode.charNum = tokens[i][2]
+          tupleNode.kind = nnkTuple
+          tupleNode.tName = tokens[i][0]
+          tupleNode.fields = parse(tokens[i + 1][0] & tokens[i + 2][0] & tokens[i + 3][0])[0]
+      
+          inc(i, 4)
+          
+          result.add(tupleNode)
       
         else:
           
@@ -247,6 +264,8 @@ proc `$`*(n: PNaelNode): string =
     result.add("INT(" & $n.iValue & ")")
   of nnkFloatLit:
     result.add("FLOAT(" & $n.fValue & ")")
+  of nnkTuple:
+    result.add("tuple($1, $2)" % [n.tName, $(n.fields)])
 
 proc `$`(ast: seq[PNaelNode]): string =
   result = ""
@@ -254,7 +273,7 @@ proc `$`(ast: seq[PNaelNode]): string =
     result.add($n & "\n")
 
 when isMainModule:
-  echo parse("stuff [] (s(ss)s);")
+  echo parse("stuff [ field1 ] tuple")
 
   discard """
 

@@ -19,7 +19,9 @@ type
     ntCmnd, # Exclusive to quotations.
     ntVar, # A pointer to a variable
     ntFunc, # Exclusively used only in variables
-    ntASTNode # A PNaelNode - VarDeclar etc, Are declared with this in quotations
+    ntASTNode, # A PNaelNode - VarDeclar etc, Are declared with this in quotations
+    ntType, # Stores type information
+    ntObject
     
   PType* = ref TType
   TType* = object
@@ -45,6 +47,13 @@ type
     of ntVar:
       vvalue*: string
       loc*: int # 0 for local, 1 for global
+      address*: ptr PType
+    of ntType:
+      name*: string
+      fields*: seq[string]
+    of ntObject:
+      typ*: PType # the ntType
+      oFields*: TDict
       
   TStack* = tuple[stack: seq[PType], limit: int]
   
@@ -108,6 +117,10 @@ proc toString*(item: PType, stack = False): string =
       result.add("Func(" & item.node.fName & ")")
     else:
       raise newException(ERuntimeError, errorLine() & "Error: Unexpected AstNode in `$`, " & $item.node.kind)
+  of ntType:
+    result.add("<type '" & item.name & "'>")
+  of ntObject:
+    result.add("<object " & toString(item.typ) & ">")
 
 proc `$`*(kind: TTypes): string =
   case kind
@@ -123,6 +136,8 @@ proc `$`*(kind: TTypes): string =
   of ntVar: return "var"
   of ntFunc: return "__func__"
   of ntASTNode: return "__ASTNode__"
+  of ntType: return "type"
+  of ntObject: return "object"
 
 proc isEqual*(first, second: PType): bool =
   if first.kind == second.kind:
@@ -142,7 +157,7 @@ proc isEqual*(first, second: PType): bool =
             return False
         return True
       else: return False
-    of ntDict, ntFunc, ntAstNode:
+    of ntDict, ntFunc, ntAstNode, ntType, ntObject:
       return first == second # FIXME: This probably doesn't work.
     of ntNil: return True
   else: return false
@@ -219,6 +234,27 @@ proc newFunc*(node: PNaelNode): PType =
   result.args = args
   result.quot = toPType(node.quot)
 
+proc newType*(node: PNaelNode): PType =
+  new(result)
+  result.kind = ntType
+  result.name = node.tName
+  
+  var fields: seq[string] = @[]
+  for n in items(node.fields.children):
+    if n.kind == nnkCommand:
+      fields.add(n.value)
+    else:
+      raise newException(ERuntimeError, errorLine() &
+          "Error: Tuple declaration incorrect, got " & $n.kind & " for fields")
+
+  result.fields = fields
+
+proc newObject*(typ: PType, fields: TDict): PType =
+  new(result)
+  result.kind = ntObject
+  result.typ = typ
+  result.oFields = fields
+
 proc newVar*(name: string, loc: int): PType =
   new(result)
   result.kind = ntVar
@@ -229,6 +265,10 @@ proc newASTNode*(node: PNaelNode): PType =
   new(result)
   result.kind = ntASTNode
   result.node = node
+
+proc newNil*(): PType =
+  new(result)
+  result.kind = ntNil
 
 proc newVariables*(): PType =
   new(result)
@@ -272,7 +312,36 @@ proc getVarIndex*(vars: var PType, name: string): int =
       return i
       
   return -1
+
+proc getVarField*(vars: var PType, name: string): PType = 
+  var s = name.split('.')
   
+  var tVar = vars.getVar(s[0])
+  
+  if tVar != nil:
+    if tVar.kind == ntObject:
+      # Check if the field exists
+      for fieldName, value in items(tVar.oFields):
+        if fieldName == s[1]:
+          return value
+          
+  return nil
+
+proc getVarFieldIndex*(vars: var PType, name: string): array[0..1, int] = # [var index, field index]
+  var s = name.split('.')
+  
+  var tVarIndex = vars.getVarIndex(s[0])
+  var tVar = vars.dValue[tVarIndex][1]
+  
+  if tVarIndex != -1:
+    if tVar.kind == ntObject:
+      # Check if the field exists
+      for i in 0 .. len(tVar.oFields)-1:
+        if tVar.oFields[i][0] == s[1]:
+          return [tVarIndex, i]
+          
+  return [-1,-1]
+
 proc declVar*(vars: var PType, name: string) =
   # Declares a variable
   for i in items(name):
@@ -285,9 +354,7 @@ proc declVar*(vars: var PType, name: string) =
   if getVarIndex(vars, name) != -1:
     raise newException(ERuntimeError, errorLine() & "Error: $1 is already declared." % [name])
 
-  var theVar: PType
-  new(theVar)
-  theVar.kind = ntNil
+  var theVar = newNil()
 
   vars.dValue.add((name, theVar))
   
@@ -301,6 +368,17 @@ proc setVar*(vars: var PType, name: string, theVar: PType) =
     raise newException(ERuntimeError, errorLine() & "Error: Variable $1 is not declared." % [name])
     
   vars.dValue[varIndex][1] = theVar
+
+proc setVarField*(vars: var PType, name: string, theVar: PType) =
+  # Sets a variables value.
+  if vars.kind != ntDict:
+    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
+  
+  var varIndex = vars.getVarFieldIndex(name)
+  if varIndex[0] == -1 or varIndex[1] == -1:
+    raise newException(ERuntimeError, errorLine() & "Error: Variable $1 is not declared." % [name])
+    
+  vars.dValue[varIndex[0]][1].oFields[varIndex[1]][1] = theVar
   
 proc remVar*(vars: var PType, name: string) =
   if vars.kind != ntDict:
@@ -313,6 +391,34 @@ proc remVar*(vars: var PType, name: string) =
       
   raise newException(ERuntimeError, errorLine() & "Error: Unable to remove variable, it doesn't exist.")
 
+proc copyVar*(tVar: PType): PType =
+  new(result)
+  result.kind = tVar.kind
+  case tVar.kind
+  of ntList:
+    result.lValue = @[]
+    for i in 0 .. len(tVar.lValue)-1:
+      result.lValue.add(tVar.lValue[i])
+  of ntQuot:
+    result.lValue = @[]
+    for i in 0 .. len(tVar.lValue)-1:
+      result.lValue.add(tVar.lValue[i])
+  of ntDict:
+    result.dValue = @[]
+    for i in 0 .. len(tVar.dValue)-1:
+      result.dValue.add(tVar.dValue[i])
+  of ntVar:
+    result.vvalue = tVar.vvalue
+    result.loc = tVar.loc
+  of ntFunc:
+    result.args = tVar.args
+    result.quot = tVar.quot # I doubt there will be any functions for editing this
+  of ntAstNode, ntType, ntInt, ntFloat, ntCmnd, ntString, ntBool, ntNil:
+    result = tVar
+  of ntObject:
+    result.typ = tVar.typ
+    result.oFields = tVar.oFields
+    
 proc toPType(item: PNaelNode): PType =
   ## Converts a PNaelNode of any kind. Into a corresponding PType
   new(result)
@@ -337,11 +443,12 @@ proc toPType(item: PNaelNode): PType =
   if item.kind == nnkListLit or item.kind == nnkQuotLit:
     for node in items(item.children):
       case node.kind
-      of nnkCommand, nnkVarDeclar, nnkFunc:
+      of nnkCommand, nnkVarDeclar, nnkFunc, nnkTuple:
         # Commands are not allowed in Lists.
         if item.kind == nnkListLit:
           raise newException(ERuntimeError, errorLine() &
               "Error: $1 not allowed in a list literal" % [$node.kind])
+        
         elif item.kind == nnkQuotLit:
           if node.kind == nnkCommand:
             result.lValue.add(newCmnd(node.value))
@@ -380,8 +487,10 @@ proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PTy
       if gvars.getVarIndex(node.fName) == -1:
         gvars.declVar(node.fName)
       gvars.setVar(node.fName, newFunc(node))
-
-
+    of nnkTuple:
+      if gvars.getVarIndex(node.tName) == -1:
+        gvars.declVar(node.tName)
+      gvars.setVar(node.tName, newType(node))
 
 include core
 

@@ -148,7 +148,7 @@ A thing to remember about functions is that they do not share scope. Everything 
 
 `>> bar [field, field1] tuple`
 
-`>> instance let, instance bar =`
+`>> bar new, instance swap =`
 
 `>> instance.field 10 =, instance.field1 2 =`
 
