@@ -1,5 +1,5 @@
 # nael math module
-# Copyright 2010 Dominik Picheta, Alex Mitchell
+# Copyright 2010 Dominik Picheta, Alex Mitchell, Vijay Vanness
 
 # Constants
 pi [] (3.14159265);
@@ -7,6 +7,7 @@ e [] (2.71828183);
 
 # Tuples
 point [x,y] tuple;
+ratio [numberator,denominator] tuple;
 
 # Functions
 
@@ -87,8 +88,8 @@ func slope-intercept [a b x] (
   *) 
   call a get +
 );
-
-func opposite-reciprocal [point] (
+#to some people, know as the opposite-reciprocal.
+func reciprocal [point] (
   final let, 
   final [] =, 
   final get 0 point get 1 nth - append, 
