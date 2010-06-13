@@ -47,7 +47,7 @@ type
     of ntVar:
       vvalue*: string
       loc*: int # 0 for local, 1 for global
-      address*: ptr PType
+      val*: PType
     of ntType:
       name*: string
       fields*: seq[string]
@@ -106,7 +106,7 @@ proc toString*(item: PType, stack = False): string =
   of ntNil:
     result.add("nil")
   of ntVar:
-    result.add("<var '" & item.vvalue & "' loc=" & $item.loc & ">")
+    result.add("<var '" & item.vvalue & "' loc=" & $item.loc & " val=" & toString(item.val) & ">")
   of ntFunc:
     result.add("__func__")
   of ntAstNode:
@@ -255,11 +255,12 @@ proc newObject*(typ: PType, fields: TDict): PType =
   result.typ = typ
   result.oFields = fields
 
-proc newVar*(name: string, loc: int): PType =
+proc newVar*(name: string, loc: int, val: PType): PType =
   new(result)
   result.kind = ntVar
   result.vvalue = name
   result.loc = loc
+  result.val = val
 
 proc newASTNode*(node: PNaelNode): PType = 
   new(result)

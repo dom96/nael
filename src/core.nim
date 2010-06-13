@@ -239,6 +239,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
   of "get":
     var first = dataStack.pop()
     if first.kind == ntVar:
+      discard """
       var tVar: PType
       
       if first.loc == 0:
@@ -255,17 +256,20 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       
       if tVar == nil:
         raise newException(ERuntimeError, errorLine() &
-            "Error: $1 is not declared." % [first.vvalue])
+            "Error: $1 is not declared." % [first.vvalue])"""
       
       # unreference the value, so that getting a list from a variable and appending
       # to it, doesn't make changes to the variable
       
-      dataStack.push(copyVar(tVar))
+      dataStack.push(copyVar(first.val))
     
     else:
       raise invalidTypeErr($first.kind, "var", "get")
   
   of "del":
+    discard dataStack.pop()
+
+  of "delvar":
     var v = dataStack.pop()
     if v.kind == ntVar:
       if v.loc == 0:
@@ -274,6 +278,9 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       elif v.loc == 1:
         if gvars.getVar(v.vvalue) != nil:
           gvars.remVar(v.vvalue)
+      else:
+        raise newException(ERuntimeError, errorLine() &
+            "Error: Cannot remove field variables, loc = $1" % [$v.loc])
     
   of "__stack__":
     dataStack.push(newList(dataStack.stack))
@@ -328,14 +335,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       dataStack.push(newFloat(sqrt(first.fValue)))
     else:
       raise invalidTypeErr($first.kind, "float", "sqrt")
-
-  of "cos":
-    var first = dataStack.pop()
-    if first.kind == ntFloat:
-      dataStack.push(newFloat(cos(first.fValue)))
-    else:
-      raise invalidTypeErr($first.kind, "float", "cos")
-
+  
   of "pow":
     var first = dataStack.pop()
     var second = dataStack.pop()
@@ -464,7 +464,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       raise newException(ERuntimeError, errorLine() & "Error: $1 is not declared." % [cmnd])
     
     if tVar.kind != ntFunc:
-      dataStack.push(newVar(cmnd, varLoc))
+      dataStack.push(newVar(cmnd, varLoc, tVar))
     else:
       callFunc(dataStack, vars, gvars, cmnd, tVar, module)
 
