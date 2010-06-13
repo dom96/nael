@@ -1,20 +1,15 @@
-#person [
-#  name
-#  race
-#  age
-#  father
-#  mother
-#] tuple
+func while2 [cond, do] ((cond get call) (do get call cond get do get while2) () if);
+func times [do, i] (count let, count 0 =, (count get, i get, <) (do get call, count count get 1 + =) while );
+func dup [] (__stack__ len 1 -, __stack__ swap nth);
+func clear [] ((del) __stack__ len 1 - times);
+func dip [value, quo] (quo get call value get);
 
-while2 [cond, do] ((cond get call) (do get call cond get do get while2) () if);
-times [do, i] (count let, count 1 =, (count get, i get, == !) (do get call, count count get 1 + =) while );
-dup [] (__stack__ len 1 -, __stack__ swap nth);
-clear [] ((del) __stack__ len 1 - times);
-dip [value, quo] (quo get call value get);
+func inc [i] (i i get 1 + =, i get);
 
-inc [i] (i i get 1 + =, i get);
+func <= [first, second] (first get second get == first get second get < or);
+func >= [x,y] (y get x get <=);
 
-each [list, quo] 
+func each [list, quo] 
   ( 
     i let, i 0 = # Set i  to 0
     ( 
@@ -30,7 +25,5 @@ each [list, quo]
     ) while
   );
   
-join [list, seperator] (i let, i 0 =, s let, s "" =, (i get, list get len 1 - <) (s get (i get 0 == !) (seperator get +) () if, list get, i get nth, + s swap =, i i get inc =) while, s get);
+func join [list, seperator] (i let, i 0 =, s let, s "" =, (i get, list get len 1 - <) (s get (i get 0 == !) (seperator get +) () if, list get, i get nth, + s swap =, i i get inc =) while, s get);
 
-<= [first, second] (first get second get == first get second get < or);
->= [x,y] (y get x get <=);

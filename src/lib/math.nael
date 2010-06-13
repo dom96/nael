@@ -1,5 +1,5 @@
 # nael math module
-# Copyright 2010 Dominik Picheta, Alex Mitchell (and a weee tiny bit Vijay Vanness)
+# Copyright 2010 Dominik Picheta, Alex Mitchell
 
 # Constants
 pi [] (3.14159265);
@@ -10,7 +10,7 @@ point [x,y] tuple;
 
 # Functions
 
-picks-basic [area perimeter] (
+func picks-basic [area perimeter] (
   #Allows you to calculate the area of a polygon in square units : see http://en.wikipedia.org/wiki/Pick's_theorem
   (
     (area get 
@@ -19,12 +19,12 @@ picks-basic [area perimeter] (
    call 1 -
 );
 
-circum [r] (
+func circum [r] (
   # Calculates the circumference of r
   r get >float 2 *, pi *
 );
   
-fib [n] (
+func fib [n] (
   first let, first 0 =
   second let, second 1 =
   t let, t 0 =
@@ -34,15 +34,15 @@ fib [n] (
   second get
 );
 
-isEven? [n] (n get 2 % 0 ==);
+func isEven? [n] (n get 2 % 0 ==);
 
-collatz [c] (
+func collatz [c] (
   (c get isEven?) 
   (c get 2 /) 
   (c get 3 * 1 +) if
 );
 
-midpoint [x1 y1 x2 y2] (
+func midpoint [x1 y1 x2 y2] (
   ar let, ar [] =
   ar get
   x1 get >float, x2 get >float + 2.0 / append
@@ -50,44 +50,45 @@ midpoint [x1 y1 x2 y2] (
   del
 );
 
-distance [x1 y1 x2 y2] (
+func distance [x1 y1 x2 y2] (
   (
   ((x2 get >float x1 get >float -) call >float 2.0 pow) call 
   ((y2 get >int y1 get >int -) call >float 2.0 pow) call 
   +) call >float sqrt
 );
 
-heaviside [n] (
+func heaviside [n] (
   (n get 0 >)
   (1)
   ((n get 0 ==) (0.5) (0) if) if
 );
 
-absolute [n] (
+func absolute [n] (
   n get >float n get >float * sqrt
 );
 
->float [n] (("int" n get type ==) (n get int>float) (("float" n get type ==) (n get) ("Incompatible type") if) if);
->int [n] (("float" n get type ==) (n get float>int) (("int" n get type ==) (n get) ("Incompatible type") if) if);
+func >float [n] (("int" n get type ==) (n get int>float) (("float" n get type ==) (n get) ("Incompatible type") if) if);
+func >int [n] (("float" n get type ==) (n get float>int) (("int" n get type ==) (n get) ("Incompatible type") if) if);
 
-max [n] (
+func max [n] (
   n get 0.5 (n get 0.0 >=) (+) (-) if float>int
 );
 
-slope-intercept-recurs [a b x1] ( #The same as the one below, except, this except x1 to be a [] list of numbers.
+func slope-intercept-recurs [a b x1] ( #The same as the one below, except, this except x1 to be a [] list of numbers.
   (x1 get 
   (b get *) 
   each) 
   call a get +
 );
-slope-intercept [a b x] ( 
+
+func slope-intercept [a b x] ( 
   (x get 
   b get 
   *) 
   call a get +
 );
 
-opposite-reciprocal [point] (
+func opposite-reciprocal [point] (
   final let, 
   final [] =, 
   final get 0 point get 1 nth - append, 

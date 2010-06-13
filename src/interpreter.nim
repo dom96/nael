@@ -2,7 +2,7 @@
 # 30 May 2010
 
 # Interpreter - Executes the AST
-import parser, strutils, os, times, math
+import parser, strutils, os, times, math, dynlib
 
 type
   TDict* = seq[tuple[name: string, value: PType]]

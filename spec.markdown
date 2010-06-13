@@ -126,7 +126,7 @@ You can then execute this code, by using the built in keyword, `call`
 ## Functions ##
 Declaring functions is easy. And calling them is easy too.
 
-`>> foo [arg] (arg print, arg " again" + print);`
+`>> func foo [arg] (arg print, arg " again" + print);`
 
 `>> "hi" foo`
 
@@ -136,7 +136,7 @@ Declaring functions is easy. And calling them is easy too.
 
 You can also have multi-line functions.
 
-    foo [arg]
+    func foo [arg]
         (
             arg print
             arg " again" + print

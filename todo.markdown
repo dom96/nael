@@ -1,7 +1,7 @@
 nael todo list
 ==============
 
-* `type` function - Pop's a value from the stack and pushes it's type.
+* `type` function - Pop's a value from the stack and pushes it's type. **Done**
 * tuples - **Done**
 * dictionaries
 * Loading of C Libraries

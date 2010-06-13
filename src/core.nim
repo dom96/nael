@@ -23,6 +23,25 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       interpretQuotation(first, dataStack, vars, gvars)
     else:
       raise invalidTypeErr($first.kind, "quot", "call")
+  
+  of "ccall":
+    # "header" "function" [args] ccall
+    var args = dataStack.pop()
+    var function = dataStack.pop()
+    var header = dataStack.pop()
+    if function.kind == ntString and header.kind == ntString and args.kind == ntList:
+      dataStack.push(newString("Sorry this doesn't work yet :("))
+      when False:
+        var lib = LoadLib(header.value)
+        var funcPtr = checkedSymAddr(lib, function.value)
+        var func = cast[proc(x: float): float](funcPtr)
+        var arg = 4.5
+        echo(cast[int](addr(arg)))
+        var val = func(arg)
+        echo(val)
+    else:
+      raise invalidTypeErr($args.kind & $function.kind & $header.kind, "list, string and string", "ccall")
+      
   of "import":
     var first = dataStack.pop()
     if first.kind == ntString:
@@ -150,10 +169,12 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         raise invalidTypeErr($boolean.kind, "bool", "while")
   
       while boolean.bValue:
+        interpretQuotation(do, dataStack, vars, gvars)
+
         interpretQuotation(cond, dataStack, vars, gvars)
         boolean = dataStack.pop()
-        
-        interpretQuotation(do, dataStack, vars, gvars)
+    else:
+      raise invalidTypeErr($do.kind & " and " & $cond.kind, "quot and quot", "while")
   
   of "==":
     var first = dataStack.pop()

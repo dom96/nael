@@ -15,7 +15,7 @@ type
     nnkListLit, # [5]
     nnkQuotLit, # ("some code here" print)
     nnkVarDeclar, # x let
-    nnkFunc, # func [args] (...);
+    nnkFunc, # func foo [args] (...);
     nnkTuple # name [ fields ] tuple
     
   PNaelNode* = ref TNaelNode
@@ -154,6 +154,27 @@ proc parse*(code: string): seq[PNaelNode] =
             "[Line: $1 Char: $2] SyntaxError: String not ended" %
                 [$tokens[i][1], $tokens[i][2]])
     
+    of "func":
+        if tokens.len()-i > 8 and tokens[i + 8][0] == ";":
+          # each [ is one token, same goes for (, ] and ]
+          # func foo [args] (...);
+          var funcNode: PNaelNode
+          new(funcNode)
+          funcNode.lineNum = tokens[i][1]
+          funcNode.charNum = tokens[i][2]
+          funcNode.kind = nnkFunc
+          funcNode.fName = tokens[i + 1][0]
+          funcNode.args = parse(tokens[i + 2][0] & tokens[i + 3][0] & tokens[i + 4][0])[0]
+          funcNode.quot = parse(tokens[i + 5][0] & tokens[i + 6][0] & tokens[i + 7][0])[0]
+          
+          inc(i, 8)
+          
+          result.add(funcNode)
+        else:
+          raise newException(ESystem, 
+              "[Line: $1 Char: $2] SyntaxError: Invalid function declaration" %
+                  [$tokens[i][1], $tokens[i][2]])
+    
     else:
       if tokenIsNumber(tokens[i][0]):
         var intNode: PNaelNode
@@ -190,22 +211,6 @@ proc parse*(code: string): seq[PNaelNode] =
           inc(i)
       
           result.add(declNode)
-          
-        elif tokens.len()-i > 7 and tokens[i + 7][0] == ";":
-          # each [ is one token, same goes for (, ] and ]
-          # foo [args] (...);
-          var funcNode: PNaelNode
-          new(funcNode)
-          funcNode.lineNum = tokens[i][1]
-          funcNode.charNum = tokens[i][2]
-          funcNode.kind = nnkFunc
-          funcNode.fName = tokens[i][0]
-          funcNode.args = parse(tokens[i + 1][0] & tokens[i + 2][0] & tokens[i + 3][0])[0]
-          funcNode.quot = parse(tokens[i + 4][0] & tokens[i + 5][0] & tokens[i + 6][0])[0]
-          
-          inc(i, 7)
-          
-          result.add(funcNode)
       
         elif tokens.len()-i > 4 and tokens[i + 4][0] == "tuple":
           # each [ is one token
@@ -273,7 +278,7 @@ proc `$`(ast: seq[PNaelNode]): string =
     result.add($n & "\n")
 
 when isMainModule:
-  echo parse("stuff [ field1 ] tuple")
+  echo parse("func foo [arg] (print);")
 
   discard """
 
