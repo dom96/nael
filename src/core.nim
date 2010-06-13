@@ -328,7 +328,14 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       dataStack.push(newFloat(sqrt(first.fValue)))
     else:
       raise invalidTypeErr($first.kind, "float", "sqrt")
-  
+
+  of "cos":
+    var first = dataStack.pop()
+    if first.kind == ntFloat:
+      dataStack.push(newFloat(cos(first.fValue)))
+    else:
+      raise invalidTypeErr($first.kind, "float", "cos")
+
   of "pow":
     var first = dataStack.pop()
     var second = dataStack.pop()
