@@ -1,0 +1,1 @@
+nimrod c --passl="-shared" test

@@ -24,6 +24,30 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     else:
       raise invalidTypeErr($first.kind, "quot", "call")
   
+  of "nload":
+    var lib = dataStack.pop()
+    if lib.kind == ntString:
+      var libPtr = LoadLib(os.getApplicationDir() / lib.value)
+      dataStack.push(newInt(cast[int](libPtr)))
+    else:
+      raise invalidTypeErr($lib.kind, "string", "nload")
+
+  of "ncall":
+    var args = dataStack.pop()
+    var func = dataStack.pop()
+    var lib = dataStack.pop()
+   
+    if args.kind == ntList and lib.kind == ntInt and func.kind == ntString:
+      var libPtr = cast[pointer](lib.iValue)
+      var funcPtr = checkedSymAddr(libPtr, func.value)
+      echo(cast[int](funcPtr))
+      var funcProt = cast[proc(x: PType): PType](funcPtr)
+      echo(args == nil)
+      echo(funcProt(args) == nil)
+      #dataStack.push(val)
+    else:
+      raise invalidTypeErr($args.kind & ", " & $func.kind & " and " & $lib.kind, "list, string and int", "ncall")
+
   of "ccall":
     # "header" "function" [args] ccall
     var args = dataStack.pop()

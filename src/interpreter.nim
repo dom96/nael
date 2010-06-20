@@ -3,6 +3,7 @@
 
 # Interpreter - Executes the AST
 import parser, strutils, os, times, math, dynlib
+from posix import dlerror
 
 type
   TDict* = seq[tuple[name: string, value: PType]]
@@ -21,7 +22,7 @@ type
     ntFunc, # Exclusively used only in variables
     ntASTNode, # A PNaelNode - VarDeclar etc, Are declared with this in quotations
     ntType, # Stores type information
-    ntObject
+    ntObject # Instance of a Type
     
   PType* = ref TType
   TType* = object
@@ -46,10 +47,11 @@ type
       node*: PNaelNode
     of ntVar:
       vvalue*: string
-      loc*: int # 0 for local, 1 for global
+      loc*: int # 0 for local, 1 for global, 2 for localfield, 3 for globalfield
       val*: PType
     of ntType:
       name*: string
+      specialType*: string # A special type, indicates one of the built-in types, e.g string, int
       fields*: seq[string]
     of ntObject:
       typ*: PType # the ntType
@@ -234,10 +236,11 @@ proc newFunc*(node: PNaelNode): PType =
   result.args = args
   result.quot = toPType(node.quot)
 
-proc newType*(node: PNaelNode): PType =
+proc newType*(node: PNaelNode, specialType: string = ""): PType =
   new(result)
   result.kind = ntType
   result.name = node.tName
+  result.specialType = specialType
   
   var fields: seq[string] = @[]
   for n in items(node.fields.children):
@@ -280,7 +283,7 @@ proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: va
 proc addStandard*(vars: var PType) =
   ## Adds standard variables(__path__, __modules__) to vars. 
   var appDir = newString(os.getApplicationDir())
-  var pathVar = newList(@[appDir, newString(appDir.value / "lib")])
+  var pathVar = newList(@[appDir, newString(appDir.value / "lib"), newString(appDir.value / "wrappers")])
   vars.dValue.add(("__path__", pathVar))
   
   var modulesVar: PType # [["name", {locals}, {globals}], ...]

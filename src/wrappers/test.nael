@@ -1,0 +1,8 @@
+# test wrapper
+
+func sqrt2 [x] (
+  # Import the wrapper
+  lib let, lib, "libtest.so" nload, =
+  
+  lib "nael_sqrt" [x] ncall
+);
