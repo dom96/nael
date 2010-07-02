@@ -411,6 +411,7 @@ proc copyVar*(tVar: PType): PType =
   of ntVar:
     result.vvalue = tVar.vvalue
     result.loc = tVar.loc
+    result.val = tVar.val
   of ntFunc:
     result.args = tVar.args
     result.quot = tVar.quot # I doubt there will be any functions for editing this
