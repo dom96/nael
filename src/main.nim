@@ -17,7 +17,8 @@ when isMainModule:
         exec(stdin.readLine(), dataStack, vars, vars)
       except ERuntimeError, EOverflow, EInvalidValue, ESystem:
         echo(getCurrentExceptionMsg())
-        
+      
+      
       printStack(dataStack)
   else:
     if paramStr(1) == "-a" or paramStr(1) == "--about":

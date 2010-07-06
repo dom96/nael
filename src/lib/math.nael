@@ -2,18 +2,17 @@
 # Copyright 2010 Dominik Picheta, Alex Mitchell, Vijay Vanness
 
 # Constants
-pi [] (3.14159265);
-e [] (2.71828183);
+func pi [] (3.14159265);
+func e [] (2.71828183);
 
 # Tuples
-point [x,y] tuple;
-ratio [numberator,denominator] tuple;
+point [x,y] tuple
+ratio [numberator,denominator] tuple
 
-# Functions
+# Function
 
 func picks-basic [area perimeter] (
   #Allows you to calculate the area of a polygon in square units : see http://en.wikipedia.org/wiki/Pick's_theorem
-  (
     (area get 
       (perimeter get 2 /) 
      call +) 
@@ -22,7 +21,7 @@ func picks-basic [area perimeter] (
 
 func circum [r] (
   # Calculates the circumference of r
-  r get >float 2 *, pi *
+  r get >float 2.0 *, pi *
 );
   
 func fib [n] (

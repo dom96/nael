@@ -10,6 +10,7 @@ type
   TTypes* = enum
     ntInt,
     ntFloat,
+    ntFraction,
     ntString,
     ntBool,
     ntList,
@@ -30,6 +31,9 @@ type
       iValue*: int64
     of ntFloat:
       fValue*: float64
+    of ntFraction:
+      firstVal*: int64
+      secondVal*: int64
     of ntString, ntCmnd:
       value*: string # for ntCmnd, name of cmnd.
     of ntBool:
@@ -77,6 +81,8 @@ proc toString*(item: PType, stack = False): string =
     return $item.iValue
   of ntFloat:
     return $item.fValue
+  of ntFraction:
+    return $item.firstVal & "/" & $item.secondVal
   of ntString, ntCmnd:
     if stack:
       return "\"" & item.value & "\""
@@ -126,6 +132,7 @@ proc `$`*(kind: TTypes): string =
   case kind
   of ntInt: return "int"
   of ntFloat: return "float"
+  of ntFraction: return "fraction"
   of ntString: return "string"
   of ntBool: return "bool"
   of ntList: return "list"
@@ -146,6 +153,8 @@ proc isEqual*(first, second: PType): bool =
       return first.iValue == second.iValue
     of ntFloat:
       return first.fValue == second.fValue
+    of ntFraction:
+      return first.firstVal == second.firstVal and first.secondVal == second.secondVal
     of ntString, ntCmnd, ntVar:
       return first.value == second.value
     of ntBool:
@@ -198,6 +207,12 @@ proc newFloat*(value: float64): PType =
   new(result)
   result.kind = ntFloat
   result.fValue = value
+
+proc newFraction*(fValue: int64, sValue: int64): PType =
+  new(result)
+  result.kind = ntFraction
+  result.firstVal = fValue
+  result.secondVal = sValue
 
 proc newString*(value: string): PType =
   new(result)
@@ -415,7 +430,7 @@ proc copyVar*(tVar: PType): PType =
   of ntFunc:
     result.args = tVar.args
     result.quot = tVar.quot # I doubt there will be any functions for editing this
-  of ntAstNode, ntType, ntInt, ntFloat, ntCmnd, ntString, ntBool, ntNil:
+  of ntAstNode, ntType, ntInt, ntFloat, ntFraction, ntCmnd, ntString, ntBool, ntNil:
     result = tVar
   of ntObject:
     result.typ = tVar.typ

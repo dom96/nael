@@ -113,7 +113,15 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
                         
     elif cmnd == "/":
       if first.kind == ntInt and second.kind == ntInt:
-        dataStack.push(newInt(second.iValue div first.iValue))
+        if first.iValue == 0 or second.iValue == 0:
+          raise newException(ERuntimeError, errorLine() &
+            "Error: Division by zero")
+          
+        if second.iValue %% first.iValue == 1:
+          dataStack.push(newFraction(second.iValue, first.iValue))
+        else:
+          dataStack.push(newInt(second.iValue div first.iValue))
+          
       elif first.kind == ntFloat and second.kind == ntFloat:
         dataStack.push(newFloat(second.fvalue / first.fvalue))
       else:
@@ -475,7 +483,7 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
   
   for item in items(quot.lvalue):
     case item.kind
-    of ntInt, ntFloat, ntString, ntBool, ntList, ntQuot, ntDict, ntNil, ntFunc, ntVar, ntType, ntObject:
+    of ntInt, ntFloat, ntFraction, ntString, ntBool, ntList, ntQuot, ntDict, ntNil, ntFunc, ntVar, ntType, ntObject:
       dataStack.push(item)
     of ntCmnd:
       command(item.value, dataStack, vars, gvars)
