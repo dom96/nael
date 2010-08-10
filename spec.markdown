@@ -155,3 +155,24 @@ A thing to remember about functions is that they do not share scope. Everything 
 `>> instance.field instance.field1 /`
 
 `5`
+
+# nael 0.2 - ideas
+
+## Functions
+The interpreter could infer the stack effect of functions.
+
+`func a [] (+);`
+
+Would be inferred as, `String String -- String`
+
+The programmer could also specify the stack effect of functions. Like in haskell.
+
+`a :: String String -- String`
+
+Perhaps a different function declaration syntax would be better.
+
+Getting rid of ( ) might be a good idea, instead for a non rpn syntax.
+
+`a := +`
+
+`a arg = arg get +`
