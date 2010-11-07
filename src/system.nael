@@ -24,6 +24,25 @@ func each [list, quo]
       i i get inc = # Increase i by 1
     ) while
   );
-  
+
+func fold [list, beg, quo]
+  (
+    i let, i 0 =
+    beg2 let, beg2 beg get =
+    (
+      i get
+      list get len <
+    )
+    (
+      beg2 get
+      list get, i get nth
+      quo get call
+      beg2 swap =
+      
+      i i get inc =
+    ) while
+    beg2 get
+  );
+
 func join [list, seperator] (i let, i 0 =, s let, s "" =, (i get, list get len 1 - <) (s get (i get 0 == !) (seperator get +) () if, list get, i get nth, + s swap =, i i get inc =) while, s get);
 
