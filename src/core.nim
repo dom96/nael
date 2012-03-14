@@ -167,22 +167,22 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
   of "while":
     # Loop until cond becomes false
     # (cond) (do) while
-    var do = dataStack.pop()
+    var doAction = dataStack.pop()
     var cond = dataStack.pop()
     
-    if do.kind == ntQuot and cond.kind == ntQuot:
+    if doAction.kind == ntQuot and cond.kind == ntQuot:
       interpretQuotation(cond, dataStack, vars, gvars)
       var boolean = dataStack.pop()
       if boolean.kind != ntBool:
         raise invalidTypeErr($boolean.kind, "bool", "while")
   
       while boolean.bValue:
-        interpretQuotation(do, dataStack, vars, gvars)
+        interpretQuotation(doAction, dataStack, vars, gvars)
 
         interpretQuotation(cond, dataStack, vars, gvars)
         boolean = dataStack.pop()
     else:
-      raise invalidTypeErr($do.kind & " and " & $cond.kind, "quot and quot", "while")
+      raise invalidTypeErr($doAction.kind & " and " & $cond.kind, "quot and quot", "while")
   
   of "==":
     var first = dataStack.pop()
@@ -308,10 +308,10 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var list = dataStack.pop()
     if index.kind == ntInt and list.kind == ntlist:
       # WTF, something is really wrong with exceptions
-      #try:
-      dataStack.push(list.lValue[int(index.iValue)])
-      #except:
-      #  raise newException(ERuntimeError, "Error: $1" % [getCurrentExceptionMsg()])
+      try:
+        dataStack.push(list.lValue[int(index.iValue)])
+      except:
+        raise newException(ERuntimeError, "Error: $1" % [getCurrentExceptionMsg()])
     else:
       raise invalidTypeErr($index.kind & " and " & $list.kind, "int and list", "nth")
   

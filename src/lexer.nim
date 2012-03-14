@@ -153,7 +153,7 @@ proc analyse*(code: string): seq[TTokens] =
     inc(i)
       
 when isMainModule:
-  for i, cL, cC in items(analyse("func foo [arg] (print);")):
+  for i, cL, cC in items(analyse("func foo [arg] (((\"test\" print) call) call);")):
     if i != "":
       echo(i)
     else:
