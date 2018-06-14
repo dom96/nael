@@ -47,31 +47,31 @@ proc getChar(tokens: seq[string], i: int): int =
 
 proc tokenIsNumber(token: string): bool =
   if token == "-":
-    return False
+    return false
 
   for i in items(token):
     if i in {'0'..'9'}:
-      result = True
+      result = true
     elif i == '-':
-      result = False
+      result = false
     else:
-      return False
+      return false
 
 proc tokenIsFloat(token: string): bool =
-  var dot = False
-  var nr = False
+  var dot = false
+  var nr = false
   for i in items(token):
     if i in {'0'..'9'}:
-      nr = True
+      nr = true
     elif i == '.':
-      dot = True
+      dot = true
     elif i == '-':
-      nil
+      discard
     else:
-      return False
+      return false
   
   if dot and nr:
-    return True
+    return true
 
 proc parse*(code: string): seq[PNaelNode] =
   # Parse code into an AST
@@ -80,7 +80,7 @@ proc parse*(code: string): seq[PNaelNode] =
   var tokens = analyse(code) # (token, lineNum, charNum)
   
   var i = 0
-  while True:
+  while true:
     if tokens.len()-1 < i:
       break
     
@@ -101,7 +101,7 @@ proc parse*(code: string): seq[PNaelNode] =
         
         result.add(quotNode)
       else:
-        raise newException(ESystem, 
+        raise newException(SystemError, 
             "[Line: $1 Char: $2] SyntaxError: Quotation not ended" %
                 [$tokens[i][1], $tokens[i][2]])
     
@@ -121,17 +121,17 @@ proc parse*(code: string): seq[PNaelNode] =
     
         result.add(listNode)
       else:
-        raise newException(ESystem, 
+        raise newException(SystemError, 
             "[Line: $1 Char: $2] SyntaxError: List not ended" %
                 [$tokens[i][1], $tokens[i][2]])
     
     of "]", ")":
       if tokens[i][0] == "]":
-        raise newException(ESystem, 
+        raise newException(SystemError, 
                     "[Line: $1 Char: $2] SyntaxError: List not started" %
                         [$tokens[i][1], $tokens[i][2]])
       elif tokens[i][0] == ")":
-        raise newException(ESystem, 
+        raise newException(SystemError, 
                     "[Line: $1 Char: $2] SyntaxError: Quotation not started" %
                         [$tokens[i][1], $tokens[i][2]])
     
@@ -150,7 +150,7 @@ proc parse*(code: string): seq[PNaelNode] =
         
         result.add(strNode)
       else:
-        raise newException(ESystem, 
+        raise newException(SystemError, 
             "[Line: $1 Char: $2] SyntaxError: String not ended" %
                 [$tokens[i][1], $tokens[i][2]])
     
@@ -171,7 +171,7 @@ proc parse*(code: string): seq[PNaelNode] =
           
           result.add(funcNode)
         else:
-          raise newException(ESystem, 
+          raise newException(SystemError, 
               "[Line: $1 Char: $2] SyntaxError: Invalid function declaration" %
                   [$tokens[i][1], $tokens[i][2]])
     
