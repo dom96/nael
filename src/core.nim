@@ -3,13 +3,15 @@
 
 # core - Implements commands like 'print'
 
+import random
+
 proc getModule(name: string, gvars: var PType): seq[PType]
 proc loadModules(modules: seq[string], vars, gvars: var PType)
 proc callFunc*(dataStack: var TStack, vars, gvars: var PType, cmnd: string,
     tVar: PType, module: var seq[PType])
 
-proc invalidTypeErr(got, expected, function: string): ref ERuntimeError =
-  return newException(ERuntimeError, errorLine() & "Error: Invalid types, $1 expects $2, got $3" % [function, expected, got])
+proc invalidTypeErr(got, expected, function: string): ref RuntimeError =
+  return newException(RuntimeError, errorLine() & "Error: Invalid types, $1 expects $2, got $3" % [function, expected, got])
 
 proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
   case cmnd
@@ -31,13 +33,13 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var header = dataStack.pop()
     if function.kind == ntString and header.kind == ntString and args.kind == ntList:
       dataStack.push(newString("Sorry this doesn't work yet :("))
-      when False:
+      when false:
         var lib = LoadLib(header.value)
         var funcPtr = checkedSymAddr(lib, function.value)
-        var func = cast[proc(x: float): float](funcPtr)
+        var fun = cast[proc(x: float): float](funcPtr)
         var arg = 4.5
         echo(cast[int](addr(arg)))
-        var val = func(arg)
+        var val = fun(arg)
         echo(val)
     else:
       raise invalidTypeErr($args.kind & $function.kind & $header.kind, "list, string and string", "ccall")
@@ -114,7 +116,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     elif cmnd == "/":
       if first.kind == ntInt and second.kind == ntInt:
         if first.iValue == 0 or second.iValue == 0:
-          raise newException(ERuntimeError, errorLine() &
+          raise newException(RuntimeError, errorLine() &
             "Error: Division by zero")
           
         if second.iValue %% first.iValue == 1:
@@ -259,11 +261,11 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       elif first.loc == 3:
         tVar = gvars.getVarField(first.vvalue)
       else:
-        raise newException(ERuntimeError, errorLine() &
+        raise newException(RuntimeError, errorLine() &
             "Error: Variable's location is incorrect, got $1" % [$first.loc])
       
       if tVar == nil:
-        raise newException(ERuntimeError, errorLine() &
+        raise newException(RuntimeError, errorLine() &
             "Error: $1 is not declared." % [first.vvalue])"""
       
       # unreference the value, so that getting a list from a variable and appending
@@ -287,7 +289,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
         if gvars.getVar(v.vvalue) != nil:
           gvars.remVar(v.vvalue)
       else:
-        raise newException(ERuntimeError, errorLine() &
+        raise newException(RuntimeError, errorLine() &
             "Error: Cannot remove field variables, loc = $1" % [$v.loc])
     
   of "__stack__":
@@ -311,7 +313,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       try:
         dataStack.push(list.lValue[int(index.iValue)])
       except:
-        raise newException(ERuntimeError, "Error: $1" % [getCurrentExceptionMsg()])
+        raise newException(RuntimeError, "Error: $1" % [getCurrentExceptionMsg()])
     else:
       raise invalidTypeErr($index.kind & " and " & $list.kind, "int and list", "nth")
   
@@ -355,13 +357,13 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
     var first = dataStack.pop()
     if first.kind == ntInt:
       randomize()
-      dataStack.push(newInt(random(int(first.iValue))))
+      dataStack.push(newInt(rand(int(first.iValue))))
     else:
       raise invalidTypeErr($first.kind, "int", "rand")
   of "round":
     var first = dataStack.pop()
     if first.kind == ntFloat:
-      dataStack.push(newInt(round(first.fValue)))
+      dataStack.push(newInt(round(first.fValue).int64))
     else:
       raise invalidTypeErr($first.kind, "float", "round")
   
@@ -419,11 +421,11 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
       elif first.loc == 3:
         tVar = gvars.getVarField(first.vvalue)
       else:
-        raise newException(ERuntimeError, errorLine() &
+        raise newException(RuntimeError, errorLine() &
             "Error: Variable's location is incorrect, got $1" % [$first.loc])
       
       if tVar == nil:
-        raise newException(ERuntimeError, errorLine() &
+        raise newException(RuntimeError, errorLine() &
             "Error: $1 is not declared." % [first.vvalue])
       
       if tVar.kind == ntType:
@@ -469,7 +471,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
           varLoc = 3 #i.e field global
     
     if tVar == nil:
-      raise newException(ERuntimeError, errorLine() & "Error: $1 is not declared." % [cmnd])
+      raise newException(RuntimeError, errorLine() & "Error: $1 is not declared." % [cmnd])
     
     if tVar.kind != ntFunc:
       dataStack.push(newVar(cmnd, varLoc, tVar))
@@ -478,7 +480,7 @@ proc command*(cmnd: string, dataStack: var TStack, vars, gvars: var PType) =
 
 proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PType) =
   if quot.kind != ntQuot:
-    raise newException(EInvalidValue, errorLine() & 
+    raise newException(ValueError, errorLine() & 
         "Error: Argument given is not a quotation")
   
   for item in items(quot.lvalue):
@@ -491,7 +493,7 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
       case item.node.kind:
       of nnkVarDeclar:
         if gvars.getVar(item.node.value) != nil:
-          raise newException(ERuntimeError, errorLine() &
+          raise newException(RuntimeError, errorLine() &
               "Error: $1 is already declared as a global variable" % [item.node.value])
         else:
           vars.declVar(item.node.value)
@@ -505,7 +507,7 @@ proc interpretQuotation*(quot: PType, dataStack: var TStack, vars, gvars: var PT
         gvars.setVar(item.node.tName, newType(item.node))  
       
       else:
-        raise newException(ERuntimeError, errorLine() & 
+        raise newException(RuntimeError, errorLine() & 
             "Error: Unexpected AstNode in quotation, " & $item.node.kind)
 
 proc callFunc*(dataStack: var TStack, vars, gvars: var PType, cmnd: string,
@@ -545,12 +547,12 @@ proc callFunc*(dataStack: var TStack, vars, gvars: var PType, cmnd: string,
       
       #except EOverflow:
       #  # TODO: Check if this works, After araq fixes the exception bug
-      #  raise newException(ERuntimeError, 
+      #  raise newException(RuntimeError, 
       #          "Error: $1 expects $2 args, got $3" %
       #                  [cmnd, $(tVar.args.len()-1), $(i)])
 
     else:
-      raise newException(ERuntimeError, errorLine() & "Error: " & cmnd &
+      raise newException(RuntimeError, errorLine() & "Error: " & cmnd &
               " contains unexpected args, of kind " & $arg.kind)
               
   
@@ -581,7 +583,7 @@ proc getModule(name: string, gvars: var PType): seq[PType] =
         if module.lValue[0].value == name:
           return module.lValue
       else:
-        raise newException(ERuntimeError, errorLine() & 
+        raise newException(RuntimeError, errorLine() & 
             "Error: Invalid type, expected ntString got " &
                 $module.lValue[0].kind)
       
@@ -590,12 +592,12 @@ proc getModule(name: string, gvars: var PType): seq[PType] =
 proc loadModules(modules: seq[string], vars, gvars: var PType) =
   var paths = gvars.getVar("__path__")
   var modulesVar = gvars.getVar("__modules__")
-  var loaded = False
+  var loaded = false
   if paths != nil and modulesVar != nil:
     for module in items(modules):
       # Check if the module exists
       if getModule(module, gvars) != nil:
-        raise newException(ERuntimeError, errorLine() & "Error: Unable to load " &
+        raise newException(RuntimeError, errorLine() & "Error: Unable to load " &
             module & ", module is already loaded.")
     
       for path in items(paths.lValue):
@@ -618,26 +620,26 @@ proc loadModules(modules: seq[string], vars, gvars: var PType) =
             
             var moduleList = newList(@[newString(extractFilename(module)), locals, globals]) # [name, {locals}, {globals}]
             modulesVar.lValue.add(moduleList)
-            loaded = True
+            loaded = true
 
         else:
-          raise newException(ERuntimeError, errorLine() &
+          raise newException(RuntimeError, errorLine() &
               "Error: Unable to load " & module &
                   ", incorrect path, got type " & $path.kind)
 
   else:
-    raise newException(ERuntimeError, errorLine() & 
+    raise newException(RuntimeError, errorLine() & 
         "Error: Unable to load module, path and/or modules variable is not declared.")
         
         
   if not loaded:
-    raise newException(ERuntimeError, errorLine() & 
+    raise newException(RuntimeError, errorLine() & 
         "Error: Unable to load module(module cannot be found).")
     
 proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType) =
   var paths = gvars.getVar("__path__")
   var modulesVar = gvars.getVar("__modules__")
-  var loaded = False
+  var loaded = false
   if paths != nil and modulesVar != nil:
     for module in items(modules):
       for path in items(paths.lValue):
@@ -652,19 +654,19 @@ proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: va
               gvars.setVar("__path__", paths)
             
             interpret(ast, dataStack, vars, gvars)
-            loaded = True
+            loaded = true
             break
         else:
-          raise newException(ERuntimeError, errorLine() & 
+          raise newException(RuntimeError, errorLine() & 
               "Error: Unable to load " & module &
                   ", incorrect path, got type " & $path.kind)
 
   else:
-    raise newException(ERuntimeError, errorLine() & 
+    raise newException(RuntimeError, errorLine() & 
         "Error: Unable to load module, path and/or modules variable is not declared.")
   
   if not loaded:
-    raise newException(ERuntimeError, errorLine() &
+    raise newException(RuntimeError, errorLine() &
         "Error: Unable to load module(module cannot be found).")
 
 

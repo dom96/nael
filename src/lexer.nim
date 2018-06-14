@@ -17,12 +17,13 @@ proc analyse*(code: string): seq[TTokens] =
   var r = ""
 
   var i = 0
-  while True:
-    case code[i]
-    of '\0':
+  while true:
+    if code.len == i:
       if r != "":
         result.add((r, currentLine, currentChar))
       break
+    
+    case code[i]
     of ' ', ',', '\L', '\c': # Chars to ignore, these also mark the end of a token
       if r != "":
         result.add((r, currentLine, currentChar))
@@ -46,12 +47,13 @@ proc analyse*(code: string): seq[TTokens] =
       
       var opMet = 1 # The number of times [ or ( was matched.
                     # This gets decreased when ] or ) is met.
-      while True:
-        case code[i]
-        of '\0':
+      while true:
+        if code.len == i:
           if r != "":
             result.add((r, currentLine, currentChar))
           return
+        
+        case code[i]
         of '[', '(':
           inc(opMet)
           r.add($code[i])
@@ -73,7 +75,7 @@ proc analyse*(code: string): seq[TTokens] =
           r.add($code[i])
           inc(currentChar) # When increasing i, currentChar needs to be increased aswell
           inc(i) # Then Skip the starting "
-          while True:
+          while true:
             if code[i] == '\"':
               r.add($code[i])
               break
@@ -109,12 +111,13 @@ proc analyse*(code: string): seq[TTokens] =
       inc(currentChar) # When increasing i, currentChar needs to be increased aswell
       inc(i)
       
-      while True:
-        case code[i]
-        of '\0':
+      while true:
+        if code.len == i:
           if r != "":
             result.add((r, currentLine, currentChar))
           return
+        
+        case code[i]
         of '\"':
           result.add((r, currentLine, currentChar))
           r = ""
@@ -133,16 +136,16 @@ proc analyse*(code: string): seq[TTokens] =
         result.add((r, currentLine, currentChar))
         r = ""
         
-      while True:
-        case code[i]
-        of '\0':
+      while true:
+        if code.len == i:
           return
+        case code[i]
         of '\L', '\c':
           inc(currentLine)
           currentChar = 0
           break
         else:
-          nil
+          discard
         inc(currentChar) # When increasing i, currentChar needs to be increased aswell
         inc(i)
     

@@ -11,11 +11,11 @@ when isMainModule:
     vars.addStandard()
     loadStdlib(dataStack, vars, vars) # Load system.
 
-    while True:
+    while true:
       stdout.write(">> ")
       try:
         exec(stdin.readLine(), dataStack, vars, vars)
-      except ERuntimeError, EOverflow, EInvalidValue, ESystem:
+      except RuntimeError, OverflowError, ValueError, SystemError:
         echo(getCurrentExceptionMsg())
       
       

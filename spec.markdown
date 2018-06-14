@@ -59,9 +59,9 @@ Negates a boolean.
 ### if ###
 Executes a quotation based on the value on the stack.
 
-`>> (true) ("The value is True" print) ("The value is False" print) if`
+`>> (true) ("The value is true" print) ("The value is false" print) if`
 
-`The value is True`
+`The value is true`
 
 ### while ###
 Executes a quotation until the *cond* quotation pushes false on the stack

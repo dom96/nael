@@ -61,7 +61,7 @@ type
       
   TStack* = tuple[stack: seq[PType], limit: int]
   
-  ERuntimeError* = object of EBase
+  RuntimeError* = object of Exception
   
 # Characters that are invalid in variable names
 var invalidVars = {'(', ')', '[', ']', '{', '}', '\"', '\''}
@@ -73,7 +73,7 @@ proc errorLine(): string =
   result = "[$1, $2] " % [$currentLine, $currentChar]
 
 # Stack
-proc toString*(item: PType, stack = False): string =
+proc toString*(item: PType, stack = false): string =
   result = ""
 
   case item.kind
@@ -122,7 +122,7 @@ proc toString*(item: PType, stack = False): string =
     of nnkFunc:
       result.add("Func(" & item.node.fName & ")")
     else:
-      raise newException(ERuntimeError, errorLine() & "Error: Unexpected AstNode in `$`, " & $item.node.kind)
+      raise newException(RuntimeError, errorLine() & "Error: Unexpected AstNode in `$`, " & $item.node.kind)
   of ntType:
     result.add("<type '" & item.name & "'>")
   of ntObject:
@@ -163,19 +163,19 @@ proc isEqual*(first, second: PType): bool =
       if len(first.lValue) == len(second.lValue):
         for i in 0 .. len(first.lValue)-1:
           if not isEqual(first.lValue[i], second.lValue[i]):
-            return False
-        return True
-      else: return False
+            return false
+        return true
+      else: return false
     of ntDict, ntFunc, ntAstNode, ntType, ntObject:
       return first == second # FIXME: This probably doesn't work.
-    of ntNil: return True
+    of ntNil: return true
   else: return false
 
 proc printStack*(stack: TStack) =
   if stack.stack.len() > 0:
     var result = "stack → ["
     for i in 0 .. len(stack.stack)-1:
-      result.add(toString(stack.stack[i], True))
+      result.add(toString(stack.stack[i], true))
       if i < len(stack.stack)-1:
         result.add(", ")
       
@@ -188,13 +188,13 @@ proc newStack*(limit: int): TStack =
 
 proc push*(stack: var TStack, item: PType) =
   if stack.stack.len() >= stack.limit:
-    raise newException(EOverflow, errorLine() & "Error: Stack overflow")
+    raise newException(OverflowError, errorLine() & "Error: Stack overflow")
     
   stack.stack.add(item)
 
 proc pop*(stack: var TStack): PType =
   if stack.stack.len() < 1:
-    raise newException(EOverflow, errorLine() & "Error: Stack underflow")
+    raise newException(OverflowError, errorLine() & "Error: Stack underflow")
     
   return stack.stack.pop()
 
@@ -243,7 +243,7 @@ proc newFunc*(node: PNaelNode): PType =
     if n.kind == nnkCommand:
       args.add(newCmnd(n.value))
     else:
-      raise newException(ERuntimeError, errorLine() &
+      raise newException(RuntimeError, errorLine() &
           "Error: Function declaration incorrect, got " & $n.kind & " for args")
 
   result.args = args
@@ -259,7 +259,7 @@ proc newType*(node: PNaelNode): PType =
     if n.kind == nnkCommand:
       fields.add(n.value)
     else:
-      raise newException(ERuntimeError, errorLine() &
+      raise newException(RuntimeError, errorLine() &
           "Error: Tuple declaration incorrect, got " & $n.kind & " for fields")
 
   result.fields = fields
@@ -294,7 +294,7 @@ proc newVariables*(): PType =
 proc includeModules(modules: seq[string], dataStack: var TStack, vars, gvars: var PType)
 proc addStandard*(vars: var PType) =
   ## Adds standard variables(__path__, __modules__) to vars. 
-  var appDir = newString(os.getApplicationDir())
+  var appDir = newString(os.getAppDir())
   var pathVar = newList(@[appDir, newString(appDir.value / "lib")])
   vars.dValue.add(("__path__", pathVar))
   
@@ -302,8 +302,8 @@ proc addStandard*(vars: var PType) =
   modulesVar = newList(@[])
   vars.dValue.add(("__modules__", modulesVar))
   
-  vars.dValue.add(("false", newBool(False)))
-  vars.dValue.add(("true", newBool(True)))
+  vars.dValue.add(("false", newBool(false)))
+  vars.dValue.add(("true", newBool(true)))
 
 proc loadStdlib*(dataStack: var TStack, vars, gvars: var PType) =
   # Load the system module
@@ -311,7 +311,7 @@ proc loadStdlib*(dataStack: var TStack, vars, gvars: var PType) =
   
 proc getVar*(vars: var PType, name: string): PType =
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
+    raise newException(ValueError, errorLine() & "Error: The variable list needs to be a dict.")
 
   for vname, value in items(vars.dValue):
     if vname == name:
@@ -321,7 +321,7 @@ proc getVar*(vars: var PType, name: string): PType =
 
 proc getVarIndex*(vars: var PType, name: string): int =
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
+    raise newException(ValueError, errorLine() & "Error: The variable list needs to be a dict.")
 
   for i in 0 .. len(vars.dValue)-1:
     if vars.dValue[i][0] == name:
@@ -362,13 +362,13 @@ proc declVar*(vars: var PType, name: string) =
   # Declares a variable
   for i in items(name):
     if i in invalidVars:
-      raise newException(ERuntimeError, errorLine() & "Error: Variable name contains illegal characters.")
+      raise newException(RuntimeError, errorLine() & "Error: Variable name contains illegal characters.")
   
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
+    raise newException(ValueError, errorLine() & "Error: The variable list needs to be a dict.")
 
   if getVarIndex(vars, name) != -1:
-    raise newException(ERuntimeError, errorLine() & "Error: $1 is already declared." % [name])
+    raise newException(RuntimeError, errorLine() & "Error: $1 is already declared." % [name])
 
   var theVar = newNil()
 
@@ -377,35 +377,35 @@ proc declVar*(vars: var PType, name: string) =
 proc setVar*(vars: var PType, name: string, theVar: PType) =
   # Sets a variables value.
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
+    raise newException(ValueError, errorLine() & "Error: The variable list needs to be a dict.")
   
   var varIndex = vars.getVarIndex(name)
   if varIndex == -1:
-    raise newException(ERuntimeError, errorLine() & "Error: Variable $1 is not declared." % [name])
+    raise newException(RuntimeError, errorLine() & "Error: Variable $1 is not declared." % [name])
     
   vars.dValue[varIndex][1] = theVar
 
 proc setVarField*(vars: var PType, name: string, theVar: PType) =
   # Sets a variables value.
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
+    raise newException(ValueError, errorLine() & "Error: The variable list needs to be a dict.")
   
   var varIndex = vars.getVarFieldIndex(name)
   if varIndex[0] == -1 or varIndex[1] == -1:
-    raise newException(ERuntimeError, errorLine() & "Error: Variable $1 is not declared." % [name])
+    raise newException(RuntimeError, errorLine() & "Error: Variable $1 is not declared." % [name])
     
   vars.dValue[varIndex[0]][1].oFields[varIndex[1]][1] = theVar
   
 proc remVar*(vars: var PType, name: string) =
   if vars.kind != ntDict:
-    raise newException(EInvalidValue, errorLine() & "Error: The variable list needs to be a dict.")
+    raise newException(ValueError, errorLine() & "Error: The variable list needs to be a dict.")
 
   for i in 0 .. len(vars.dValue)-1:
     if vars.dValue[i][0] == name:
       vars.dValue.del(i)
       return
       
-  raise newException(ERuntimeError, errorLine() & "Error: Unable to remove variable, it doesn't exist.")
+  raise newException(RuntimeError, errorLine() & "Error: Unable to remove variable, it doesn't exist.")
 
 proc copyVar*(tVar: PType): PType =
   new(result)
@@ -454,7 +454,7 @@ proc toPType(item: PNaelNode): PType =
     result.kind = ntQuot
     result.lValue = @[]
   else:
-    raise newException(ESystem, errorLine() & "Error: Unexpected nael node kind, " & $item.kind)
+    raise newException(SystemError, errorLine() & "Error: Unexpected nael node kind, " & $item.kind)
   
   # Add all the children of quotations and lists.
   if item.kind == nnkListLit or item.kind == nnkQuotLit:
@@ -463,7 +463,7 @@ proc toPType(item: PNaelNode): PType =
       of nnkCommand, nnkVarDeclar, nnkFunc, nnkTuple:
         # Commands are not allowed in Lists.
         if item.kind == nnkListLit:
-          raise newException(ERuntimeError, errorLine() &
+          raise newException(RuntimeError, errorLine() &
               "Error: $1 not allowed in a list literal" % [$node.kind])
         
         elif item.kind == nnkQuotLit:
@@ -496,7 +496,7 @@ proc interpret*(ast: seq[PNaelNode], dataStack: var TStack, vars, gvars: var PTy
       dataStack.push(toPType(node))
     of nnkVarDeclar:
       if gvars.getVar(node.value) != nil:
-        raise newException(ERuntimeError, errorLine() &
+        raise newException(RuntimeError, errorLine() &
             "Error: $1 is already declared as a global variable" % [node.value])
       else:
         vars.declVar(node.value)
