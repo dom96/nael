@@ -22,11 +22,8 @@ proc analyse*(code: string): seq[TTokens] =
       if r != "":
         result.add((r, currentLine, currentChar))
       break
+    
     case code[i]
-    #of '\0':
-    #  if r != "":
-    #    result.add((r, currentLine, currentChar))
-    #  break
     of ' ', ',', '\L', '\c': # Chars to ignore, these also mark the end of a token
       if r != "":
         result.add((r, currentLine, currentChar))
@@ -55,11 +52,8 @@ proc analyse*(code: string): seq[TTokens] =
           if r != "":
             result.add((r, currentLine, currentChar))
           return
+        
         case code[i]
-        #of '\0':
-        #  if r != "":
-        #    result.add((r, currentLine, currentChar))
-        #  return
         of '[', '(':
           inc(opMet)
           r.add($code[i])
@@ -122,11 +116,8 @@ proc analyse*(code: string): seq[TTokens] =
           if r != "":
             result.add((r, currentLine, currentChar))
           return
+        
         case code[i]
-        #of '\0':
-        #  if r != "":
-        #    result.add((r, currentLine, currentChar))
-        #  return
         of '\"':
           result.add((r, currentLine, currentChar))
           r = ""
@@ -149,8 +140,6 @@ proc analyse*(code: string): seq[TTokens] =
         if code.len == i:
           return
         case code[i]
-        #of '\0':
-        #  return
         of '\L', '\c':
           inc(currentLine)
           currentChar = 0
